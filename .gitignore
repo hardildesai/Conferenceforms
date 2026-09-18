@@ -1,0 +1,17 @@
+# ── Next.js / conference-app ──────────────────────────────
+conference-app/.next/
+conference-app/node_modules/
+conference-app/.env.local
+conference-app/.env*.local
+conference-app/out/
+
+# ── WhatsApp sender ───────────────────────────────────────
+whatsapp-sender/node_modules/
+whatsapp-sender/dist/
+whatsapp-sender/.env
+whatsapp-sender/auth_info_baileys/   # Persisted WhatsApp session — never commit!
+
+# ── General ───────────────────────────────────────────────
+*.log
+.DS_Store
+Thumbs.db

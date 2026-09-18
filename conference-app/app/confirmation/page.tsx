@@ -2,7 +2,8 @@
 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 
 function LegrandLogo({ size = 24 }: { size?: number }) {
   return (
@@ -19,6 +20,23 @@ function ConfirmationContent() {
   const searchParams = useSearchParams();
   const code = searchParams.get('code') ?? '------';
   const name = searchParams.get('name') ?? 'Attendee';
+
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (code && code !== '------') {
+      QRCode.toDataURL(code, {
+        width: 220,
+        margin: 2,
+        color: {
+          dark: '#1a1a1a',
+          light: '#ffffff',
+        },
+      })
+        .then((url) => setQrDataUrl(url))
+        .catch(console.error);
+    }
+  }, [code]);
 
   return (
     <main className="page-shell">
@@ -76,14 +94,40 @@ function ConfirmationContent() {
           color: 'var(--cream-muted)',
           marginBottom: '16px',
         }}>
-          Your Attendance Code
+          Your Entry Pass &amp; Code
         </p>
+
+        {/* QR Code Container */}
+        {qrDataUrl && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '16px',
+          }}>
+            <div style={{
+              background: '#ffffff',
+              padding: '12px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              border: '2px solid var(--border-gold)',
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrDataUrl}
+                alt={`QR Code for ${code}`}
+                width={180}
+                height={180}
+                style={{ display: 'block', borderRadius: '4px' }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="code-display" id="attendance-code-display">
           <div className="code-digits">{code}</div>
           <div className="gold-divider-thick" style={{ margin: '14px auto 10px' }} />
           <p style={{ color: 'var(--cream-muted)', fontSize: '0.8125rem', margin: 0 }}>
-            Present this code or the emailed QR at the entrance
+            Present this QR code or 6-digit code at the entrance
           </p>
         </div>
 

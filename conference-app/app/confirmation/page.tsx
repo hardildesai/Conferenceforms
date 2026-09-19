@@ -144,17 +144,39 @@ function ConfirmationContent() {
           <p style={{ fontSize: '0.8125rem', color: 'var(--cream-muted)', margin: '0 0 8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Event Details
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {[
-              ['📅', 'Thursday, 24 September 2026'],
-              ['🕡', '6:30 PM Onwards'],
-              ['📍', 'Megma Restaurant and Banquets, Odhav, Ahmedabad'],
-            ].map(([icon, text]) => (
-              <div key={text} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
-                <span style={{ flexShrink: 0 }}>{icon}</span>
-                <span>{text}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
+              <span style={{ flexShrink: 0 }}>📅</span>
+              <span>Thursday, 24 September 2026</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
+              <span style={{ flexShrink: 0 }}>🕡</span>
+              <span>6:30 PM Onwards</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
+              <span style={{ flexShrink: 0 }}>📍</span>
+              <div>
+                <span>Megma Restaurant and Banquets, Odhav, Ahmedabad</span>
+                <div style={{ marginTop: '4px' }}>
+                  <a
+                    href="https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: 'var(--legrand-red)',
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    🗺️ Open in Google Maps ↗
+                  </a>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
 

@@ -7,6 +7,7 @@ const EVENT_NAME = 'Exclusive Legrand Experience Evening';
 const EVENT_DATE = 'Thursday, 24 September 2026';
 const EVENT_VENUE = 'Megma Restaurant and Banquets, Odhav, Ahmedabad';
 const EVENT_TIME = '6:30 PM Onwards';
+const EVENT_MAPS_LINK = 'https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6';
 
 interface SendConfirmationEmailParams {
   to: string;
@@ -38,6 +39,7 @@ export function substitutePlaceholders(
     .replace(/\{event_name\}/gi, EVENT_NAME)
     .replace(/\{date\}/gi, EVENT_DATE)
     .replace(/\{venue\}/gi, EVENT_VENUE)
+    .replace(/\{maps_link\}/gi, EVENT_MAPS_LINK)
     .replace(/\{time\}/gi, EVENT_TIME);
 }
 
@@ -136,7 +138,10 @@ function buildEmailHtml({
             <td style="background:linear-gradient(135deg,#e2000f,#b0000b);padding:28px 32px;text-align:center;color:#ffffff;">
               <h1 style="margin:0;font-size:22px;font-weight:700;line-height:1.3;color:#ffffff;">${EVENT_NAME}</h1>
               <p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">${EVENT_DATE} &nbsp;·&nbsp; ${EVENT_TIME}</p>
-              <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:13px;">${EVENT_VENUE}</p>
+              <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">${EVENT_VENUE}</p>
+              <div style="margin-top:12px;">
+                <a href="${EVENT_MAPS_LINK}" target="_blank" style="display:inline-block;background:#ffffff;color:#e2000f;text-decoration:none;font-weight:700;font-size:12px;padding:6px 14px;border-radius:20px;">🗺️ View Venue on Google Maps ↗</a>
+              </div>
             </td>
           </tr>
 

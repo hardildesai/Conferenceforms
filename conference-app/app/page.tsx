@@ -90,12 +90,9 @@ export default function RegistrationPage() {
   return (
     <main className="page-shell">
       {/* ── Legrand Top Bar ── */}
-      <div className="legrand-topbar animate-fade-up">
-        <div className="legrand-logo-wrap">
-          <LegrandLogo size={22} />
-          <span className="legrand-logo-text">
-            legrand<span className="legrand-logo-reg">®</span>
-          </span>
+      <div className="legrand-topbar animate-fade-up" style={{ justifyContent: 'center', margin: '16px 0 8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <LegrandLogo height={50} />
         </div>
       </div>
 
@@ -119,10 +116,16 @@ export default function RegistrationPage() {
             <span className="pill-icon">🕡</span>
             6:30 PM Onwards
           </span>
-          <span className="event-pill">
+          <a
+            href="https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="event-pill"
+            style={{ textDecoration: 'none', cursor: 'pointer' }}
+          >
             <span className="pill-icon">📍</span>
-            Megma Restaurant, Odhav, Ahmedabad
-          </span>
+            Megma Restaurant, Odhav, Ahmedabad ↗
+          </a>
         </div>
       </div>
 
@@ -292,13 +295,10 @@ export default function RegistrationPage() {
           paddingBottom: '8px',
         }}
       >
-        <div className="legrand-logo-wrap" style={{ padding: '7px 16px', boxShadow: 'none', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)' }}>
-          <LegrandLogo size={16} />
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: '1rem', fontWeight: 700, color: 'var(--legrand-red)', letterSpacing: '-0.01em' }}>
-            legrand<span style={{ fontSize: '0.6em', verticalAlign: 'super' }}>®</span>
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <LegrandLogo height={32} />
         </div>
-        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '6px' }}>
           Life is On
         </p>
       </div>

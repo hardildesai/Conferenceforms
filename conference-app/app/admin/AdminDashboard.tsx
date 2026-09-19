@@ -68,7 +68,8 @@ export function substitutePlaceholders(
     .replace(/\{designation\}/gi, data.designation ?? '')
     .replace(/\{event_name\}/gi, 'Exclusive Legrand Experience Evening')
     .replace(/\{date\}/gi, 'Thursday, 24 September 2026')
-    .replace(/\{venue\}/gi, 'Megma Restaurant, Odhav, Ahmedabad');
+    .replace(/\{venue\}/gi, 'Megma Restaurant, Odhav, Ahmedabad')
+    .replace(/\{maps_link\}/gi, 'https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6');
 }
 
 export default function AdminDashboard({ registrations }: Props) {
@@ -82,10 +83,10 @@ export default function AdminDashboard({ registrations }: Props) {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [customSubject, setCustomSubject] = useState('Your Entry Pass & Code for {event_name}');
   const [customEmailBody, setCustomEmailBody] = useState(
-    'Hello {name},\n\nYour registration from {company} ({designation}) is confirmed for the Legrand Experience Evening.\nYour unique attendance code is: {code}\nVenue: {venue} on {date}.\n\nPlease show your code or attached QR image at entrance.'
+    'Hello {name},\n\nYour registration from {company} ({designation}) is confirmed for the Legrand Experience Evening.\nYour unique attendance code is: {code}\nVenue: {venue} on {date}.\nLocation: https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6\n\nPlease show your code or attached QR image at entrance.'
   );
   const [customWaBody, setCustomWaBody] = useState(
-    'Hello {name}, your attendance code for Legrand Experience Evening is *{code}*. Venue: {venue} on {date}. Show this message or QR at entrance!'
+    'Hello {name}, your attendance code for Legrand Experience Evening is *{code}*. Venue: {venue} on {date}. Location: https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6. Show this message or QR at entrance!'
   );
 
   // Single recipient modal state

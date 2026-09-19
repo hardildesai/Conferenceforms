@@ -48,7 +48,7 @@ const AUTH_FOLDER = path.join(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 // Message sent via WhatsApp — supports process.env.CUSTOM_WHATSAPP_TEMPLATE or default format
 const defaultWaTemplate =
-  `Dear {name},\n\nYou are cordially invited to the *Exclusive Legrand Experience Evening* 🎉\n*Unveiling Next-Generation Power Solutions*\n\n📅 *Date:* {date}\n🕡 *Time:* 6:30 PM Onwards\n📍 *Venue:* {venue}\n\nYour attendance code is:\n\n*${'{code}'}*\n\nPlease show this code (or the QR image) to our team at the entrance for check-in.\n\nWe look forward to welcoming you!\n\n— Team Legrand`;
+  `Dear {name},\n\nYou are cordially invited to the *Exclusive Legrand Experience Evening* 🎉\n*Unveiling Next-Generation Power Solutions*\n\n📅 *Date:* {date}\n🕡 *Time:* 6:30 PM Onwards\n📍 *Venue:* {venue}\n🗺️ *Location:* https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6\n\nYour attendance code is:\n\n*${'{code}'}*\n\nPlease show this code (or the QR image) to our team at the entrance for check-in.\n\nWe look forward to welcoming you!\n\n— Team Legrand`;
 
 const MESSAGE_TEMPLATE = (name: string, code: string, company: string = '') => {
   const template = process.env.CUSTOM_WHATSAPP_TEMPLATE || defaultWaTemplate;

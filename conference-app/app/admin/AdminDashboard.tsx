@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import type { Registration } from '@/types/database';
 import { useRouter } from 'next/navigation';
 
@@ -8,14 +8,16 @@ interface Props {
   registrations: Registration[];
 }
 
-function LegrandLogo({ size = 20 }: { size?: number }) {
+function LegrandLogo({ height, size }: { height?: number; size?: number }) {
+  const logoHeight = height ?? size ?? 24;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <rect width="24" height="24" rx="3" fill="#e2000f"/>
-      <path d="M5 5H9V19H5V5Z" fill="white"/>
-      <path d="M9 15H19V19H9V15Z" fill="white"/>
-      <path d="M13 5H17V15H13V5Z" fill="white"/>
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/legrand-logo.png"
+      alt="Legrand Logo"
+      height={logoHeight}
+      style={{ display: 'block', height: `${logoHeight}px`, width: 'auto', background: '#ffffff', padding: '2px 8px', borderRadius: '4px' }}
+    />
   );
 }
 
@@ -48,11 +50,51 @@ function exportCSV(data: Registration[]) {
   URL.revokeObjectURL(url);
 }
 
+export function substitutePlaceholders(
+  template: string,
+  data: {
+    visitorName: string;
+    companyName: string;
+    designation?: string;
+    code: string;
+  }
+): string {
+  return template
+    .replace(/\{name\}/gi, data.visitorName)
+    .replace(/\{visitor_name\}/gi, data.visitorName)
+    .replace(/\{code\}/gi, data.code)
+    .replace(/\{company\}/gi, data.companyName)
+    .replace(/\{company_name\}/gi, data.companyName)
+    .replace(/\{designation\}/gi, data.designation ?? '')
+    .replace(/\{event_name\}/gi, 'Exclusive Legrand Experience Evening')
+    .replace(/\{date\}/gi, 'Thursday, 24 September 2026')
+    .replace(/\{venue\}/gi, 'Megma Restaurant, Odhav, Ahmedabad');
+}
+
 export default function AdminDashboard({ registrations }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  
+  // Custom message template state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [customSubject, setCustomSubject] = useState('Your Entry Pass & Code for {event_name}');
+  const [customEmailBody, setCustomEmailBody] = useState(
+    'Hello {name},\n\nYour registration from {company} ({designation}) is confirmed for the Legrand Experience Evening.\nYour unique attendance code is: {code}\nVenue: {venue} on {date}.\n\nPlease show your code or attached QR image at entrance.'
+  );
+  const [customWaBody, setCustomWaBody] = useState(
+    'Hello {name}, your attendance code for Legrand Experience Evening is *{code}*. Venue: {venue} on {date}. Show this message or QR at entrance!'
+  );
+
+  // Single recipient message modal state
+  const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
+  const [modalMode, setModalMode] = useState<'email' | 'whatsapp' | null>(null);
+  const [modalSubject, setModalSubject] = useState('');
+  const [modalBody, setModalBody] = useState('');
+  
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<Record<string, 'ok' | 'err'>>({});
+
+  const activeInputRef = useRef<'subject' | 'emailBody' | 'waBody'>('emailBody');
 
   const stats = useMemo(() => ({
     total: registrations.length,
@@ -74,21 +116,78 @@ export default function AdminDashboard({ registrations }: Props) {
     );
   }, [registrations, search]);
 
-  async function handleResend(id: string) {
+  function insertTag(tag: string) {
+    if (activeInputRef.current === 'subject') {
+      setCustomSubject((prev) => prev + tag);
+    } else if (activeInputRef.current === 'emailBody') {
+      setCustomEmailBody((prev) => prev + tag);
+    } else if (activeInputRef.current === 'waBody') {
+      setCustomWaBody((prev) => prev + tag);
+    }
+  }
+
+  function openSendModal(reg: Registration, mode: 'email' | 'whatsapp') {
+    setSelectedReg(reg);
+    setModalMode(mode);
+
+    if (mode === 'email') {
+      setModalSubject(substitutePlaceholders(customSubject, {
+        visitorName: reg.visitor_name,
+        companyName: reg.company_name,
+        designation: reg.designation,
+        code: reg.code,
+      }));
+      setModalBody(substitutePlaceholders(customEmailBody, {
+        visitorName: reg.visitor_name,
+        companyName: reg.company_name,
+        designation: reg.designation,
+        code: reg.code,
+      }));
+    } else {
+      setModalBody(substitutePlaceholders(customWaBody, {
+        visitorName: reg.visitor_name,
+        companyName: reg.company_name,
+        designation: reg.designation,
+        code: reg.code,
+      }));
+    }
+  }
+
+  async function handleSendEmailSubmit() {
+    if (!selectedReg) return;
+    const id = selectedReg.id;
     setResendingId(id);
+
     try {
       const res = await fetch('/api/admin/resend-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({
+          id,
+          customSubject: modalSubject,
+          customMessage: modalBody,
+        }),
       });
+
       setResendStatus((prev) => ({ ...prev, [id]: res.ok ? 'ok' : 'err' }));
       setTimeout(() => setResendStatus((prev) => { const n = { ...prev }; delete n[id]; return n; }), 3000);
     } catch {
       setResendStatus((prev) => ({ ...prev, [id]: 'err' }));
     } finally {
       setResendingId(null);
+      setSelectedReg(null);
+      setModalMode(null);
     }
+  }
+
+  function handleSendWhatsAppSubmit() {
+    if (!selectedReg) return;
+    const cleanPhone = selectedReg.phone.replace(/\D/g, '');
+    const encodedMsg = encodeURIComponent(modalBody);
+    const waUrl = `https://wa.me/${cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone}?text=${encodedMsg}`;
+    window.open(waUrl, '_blank');
+    setSelectedReg(null);
+    setModalMode(null);
   }
 
   async function handleLogout() {
@@ -102,17 +201,17 @@ export default function AdminDashboard({ registrations }: Props) {
       {/* ── Sticky topbar ── */}
       <div className="admin-topbar">
         <div className="admin-topbar-brand">
-          <div className="admin-brand-logo">
-            <LegrandLogo size={18} />
-          </div>
-          <div>
-            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--legrand-red)', fontSize: '0.9rem' }}>
-              legrand<span style={{ fontSize: '0.6em', verticalAlign: 'super' }}>®</span>
-            </span>
-            <span className="admin-brand-text" style={{ marginLeft: '8px' }}>Admin Dashboard</span>
-          </div>
+          <LegrandLogo height={24} />
+          <span className="admin-brand-text" style={{ marginLeft: '12px' }}>Admin Dashboard</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className="btn btn-legrand btn-sm"
+            onClick={() => setShowTemplateModal(!showTemplateModal)}
+          >
+            💬 Custom Message Templates
+          </button>
           <button id="export-csv-btn" className="btn btn-gold btn-sm" onClick={() => exportCSV(registrations)}>
             📥 Export CSV
           </button>
@@ -126,13 +225,102 @@ export default function AdminDashboard({ registrations }: Props) {
         {/* ── Page title ── */}
         <div style={{ marginBottom: '24px' }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Registrations
+            Registrations Management
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '2px' }}>
             Exclusive Legrand Experience Evening · 24 September 2026
           </p>
           <div style={{ width: '48px', height: '3px', background: 'linear-gradient(90deg, var(--legrand-red), var(--gold))', borderRadius: '2px', marginTop: '10px' }} />
         </div>
+
+        {/* ── Template Editor Drawer ── */}
+        {showTemplateModal && (
+          <div className="card-cream animate-fade-up" style={{ marginBottom: '24px', border: '2px solid var(--border-gold)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--cream-text)', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                ✏️ Global Message Template Editor
+              </h3>
+              <button
+                type="button"
+                className="btn btn-dark btn-sm"
+                onClick={() => setShowTemplateModal(false)}
+              >
+                Close ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.8125rem', color: 'var(--cream-muted)', marginBottom: '12px' }}>
+              Click any tag below to insert dynamic values into the custom subject or message body:
+            </p>
+
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {['{name}', '{code}', '{company}', '{designation}', '{date}', '{venue}'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => insertTag(tag)}
+                  style={{
+                    background: 'rgba(226,0,15,0.08)',
+                    border: '1px solid var(--legrand-red)',
+                    color: 'var(--legrand-red)',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              {/* Email Template */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '6px' }}>
+                  📧 Email Subject:
+                </label>
+                <input
+                  type="text"
+                  value={customSubject}
+                  onFocus={() => { activeInputRef.current = 'subject'; }}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                  className="input-cream"
+                  style={{ marginBottom: '10px' }}
+                />
+
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '6px' }}>
+                  📧 Email Message Body:
+                </label>
+                <textarea
+                  rows={5}
+                  value={customEmailBody}
+                  onFocus={() => { activeInputRef.current = 'emailBody'; }}
+                  onChange={(e) => setCustomEmailBody(e.target.value)}
+                  className="input-cream"
+                  style={{ fontFamily: 'inherit', fontSize: '0.875rem' }}
+                />
+              </div>
+
+              {/* WhatsApp Template */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '6px' }}>
+                  💬 WhatsApp Custom Message:
+                </label>
+                <textarea
+                  rows={8}
+                  value={customWaBody}
+                  onFocus={() => { activeInputRef.current = 'waBody'; }}
+                  onChange={(e) => setCustomWaBody(e.target.value)}
+                  className="input-cream"
+                  style={{ fontFamily: 'inherit', fontSize: '0.875rem' }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Stats ── */}
         <div className="stats-grid">
@@ -234,29 +422,27 @@ export default function AdminDashboard({ registrations }: Props) {
                       })}
                     </td>
                     <td>
-                      <button
-                        id={`resend-btn-${reg.id}`}
-                        className="btn btn-dark btn-sm"
-                        onClick={() => handleResend(reg.id)}
-                        disabled={resendingId === reg.id}
-                        style={{
-                          color: resendStatus[reg.id] === 'ok'
-                            ? 'var(--success)'
-                            : resendStatus[reg.id] === 'err'
-                            ? 'var(--danger)'
-                            : undefined,
-                          fontSize: '0.775rem',
-                          padding: '5px 10px',
-                        }}
-                      >
-                        {resendingId === reg.id
-                          ? '…'
-                          : resendStatus[reg.id] === 'ok'
-                          ? '✓ Sent'
-                          : resendStatus[reg.id] === 'err'
-                          ? '✗ Failed'
-                          : 'Resend'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-dark btn-sm"
+                          onClick={() => openSendModal(reg, 'email')}
+                          disabled={resendingId === reg.id}
+                          style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                          title="Send Custom Email"
+                        >
+                          📧 Custom Email
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-gold btn-sm"
+                          onClick={() => openSendModal(reg, 'whatsapp')}
+                          style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                          title="Send Custom WhatsApp"
+                        >
+                          💬 WhatsApp
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -265,6 +451,94 @@ export default function AdminDashboard({ registrations }: Props) {
           </table>
         </div>
       </div>
+
+      {/* ── Single Recipient Custom Message Modal ── */}
+      {selectedReg && modalMode && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px',
+        }}>
+          <div className="card-cream animate-fade-up" style={{ width: '100%', maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--cream-text)', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                {modalMode === 'email' ? '📧 Send Custom Email' : '💬 Send Custom WhatsApp'}
+              </h3>
+              <button
+                type="button"
+                className="btn btn-dark btn-sm"
+                onClick={() => { setSelectedReg(null); setModalMode(null); }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--cream-muted)', marginBottom: '14px' }}>
+              Recipient: <strong style={{ color: 'var(--cream-text)' }}>{selectedReg.visitor_name}</strong> ({selectedReg.company_name}) — Code: <strong style={{ color: 'var(--legrand-red)' }}>{selectedReg.code}</strong>
+            </p>
+
+            {modalMode === 'email' && (
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '4px' }}>
+                  Email Subject:
+                </label>
+                <input
+                  type="text"
+                  value={modalSubject}
+                  onChange={(e) => setModalSubject(e.target.value)}
+                  className="input-cream"
+                />
+              </div>
+            )}
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '4px' }}>
+                Custom Message Content:
+              </label>
+              <textarea
+                rows={6}
+                value={modalBody}
+                onChange={(e) => setModalBody(e.target.value)}
+                className="input-cream"
+                style={{ fontFamily: 'inherit', fontSize: '0.875rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={() => { setSelectedReg(null); setModalMode(null); }}
+              >
+                Cancel
+              </button>
+              {modalMode === 'email' ? (
+                <button
+                  type="button"
+                  className="btn btn-legrand"
+                  onClick={handleSendEmailSubmit}
+                  disabled={resendingId === selectedReg.id}
+                >
+                  {resendingId === selectedReg.id ? 'Sending…' : 'Send Email Now →'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-gold"
+                  onClick={handleSendWhatsAppSubmit}
+                >
+                  Open WhatsApp Chat →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

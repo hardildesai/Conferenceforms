@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { id?: string };
+  let body: { id?: string; customSubject?: string; customMessage?: string };
   try {
     body = await req.json();
   } catch {
@@ -57,8 +57,11 @@ export async function POST(req: NextRequest) {
       to: reg.email,
       visitorName: reg.visitor_name,
       companyName: reg.company_name,
+      designation: reg.designation,
       code: reg.code,
       qrCodeBuffer: qrBuffer,
+      customSubject: body.customSubject,
+      customBody: body.customMessage,
     });
 
     await supabase

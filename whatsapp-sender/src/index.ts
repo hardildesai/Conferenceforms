@@ -46,9 +46,19 @@ const MAX_DELAY_MS = Number(process.env.MAX_DELAY_MS ?? 90_000);
 
 const AUTH_FOLDER = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'auth_info_baileys');
 
-// Message sent via WhatsApp — customize as needed
-const MESSAGE_TEMPLATE = (name: string, code: string) =>
-  `Dear ${name},\n\nYou are cordially invited to the *Exclusive Legrand Experience Evening* 🎉\n*Unveiling Next-Generation Power Solutions*\n\n📅 *Date:* Thursday, 24 September 2026\n🕡 *Time:* 6:30 PM Onwards\n📍 *Venue:* Megma Restaurant and Banquets, Odhav, Ahmedabad\n\nYour attendance code is:\n\n*${code}*\n\nPlease show this code (or the QR image) to our team at the entrance for check-in.\n\nWe look forward to welcoming you!\n\n— Team Legrand`;
+// Message sent via WhatsApp — supports process.env.CUSTOM_WHATSAPP_TEMPLATE or default format
+const defaultWaTemplate =
+  `Dear {name},\n\nYou are cordially invited to the *Exclusive Legrand Experience Evening* 🎉\n*Unveiling Next-Generation Power Solutions*\n\n📅 *Date:* {date}\n🕡 *Time:* 6:30 PM Onwards\n📍 *Venue:* {venue}\n\nYour attendance code is:\n\n*${'{code}'}*\n\nPlease show this code (or the QR image) to our team at the entrance for check-in.\n\nWe look forward to welcoming you!\n\n— Team Legrand`;
+
+const MESSAGE_TEMPLATE = (name: string, code: string, company: string = '') => {
+  const template = process.env.CUSTOM_WHATSAPP_TEMPLATE || defaultWaTemplate;
+  return template
+    .replace(/\{name\}/gi, name)
+    .replace(/\{code\}/gi, code)
+    .replace(/\{company\}/gi, company)
+    .replace(/\{date\}/gi, 'Thursday, 24 September 2026')
+    .replace(/\{venue\}/gi, 'Megma Restaurant and Banquets, Odhav, Ahmedabad');
+};
 
 
 // ── Supabase client ───────────────────────────────────────
@@ -120,7 +130,7 @@ async function runBatch(sock: WASocket): Promise<void> {
     try {
       const jid = toJid(reg.phone);
       const qrBuffer = await generateQRBuffer(reg.code);
-      const caption = MESSAGE_TEMPLATE(reg.visitor_name, reg.code);
+      const caption = MESSAGE_TEMPLATE(reg.visitor_name, reg.code, reg.company_name);
 
       await sock.sendMessage(jid, {
         image: qrBuffer,

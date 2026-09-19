@@ -7,6 +7,16 @@ import QRCode from 'qrcode';
 
 // ── Helpers ──────────────────────────────────────────────
 
+function normalizePhoneDigits(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  } else if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  }
+  return digits;
+}
+
 function generateCode(): string {
   // Cryptographically random 6-digit number (100000–999999)
   const array = new Uint32Array(1);
@@ -15,13 +25,19 @@ function generateCode(): string {
 }
 
 function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const clean = email.trim();
+  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!regex.test(clean)) return false;
+  if (clean.includes('..') || clean.startsWith('.') || clean.endsWith('.')) return false;
+  return true;
 }
 
 function isValidPhone(phone: string): boolean {
-  // Accepts digits, +, spaces, hyphens, parentheses — at least 7 digits total
-  const digits = phone.replace(/\D/g, '');
-  return digits.length >= 7 && digits.length <= 15;
+  const digits = normalizePhoneDigits(phone);
+  if (digits.length === 10) {
+    return /^[6-9]\d{9}$/.test(digits);
+  }
+  return digits.length >= 10 && digits.length <= 15;
 }
 
 // ── POST /api/register ───────────────────────────────────
@@ -45,12 +61,12 @@ export async function POST(req: NextRequest) {
   if (!email?.trim()) {
     errors.email = 'Email is required';
   } else if (!isValidEmail(email)) {
-    errors.email = 'Please enter a valid email address';
+    errors.email = 'Please enter a valid email address (e.g. name@domain.com)';
   }
   if (!phone?.trim()) {
     errors.phone = 'Phone number is required';
   } else if (!isValidPhone(phone)) {
-    errors.phone = 'Please enter a valid phone number';
+    errors.phone = 'Please enter a valid 10-digit mobile number';
   }
 
   if (Object.keys(errors).length > 0) {
@@ -58,6 +74,44 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServerSupabaseClient();
+
+  // ── Duplicate Check ──────────────────────────────────────
+  const normalizedPhone = normalizePhoneDigits(phone);
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = visitor_name.trim().toLowerCase();
+
+  const { data: existingRecords } = await supabase
+    .from('registrations')
+    .select('visitor_name, email, phone');
+
+  if (existingRecords && existingRecords.length > 0) {
+    let phoneExists = false;
+    let emailExists = false;
+
+    for (const rec of existingRecords) {
+      const recPhone = normalizePhoneDigits(rec.phone);
+      const recEmail = rec.email.trim().toLowerCase();
+      const recName = rec.visitor_name.trim().toLowerCase();
+
+      if (recPhone === normalizedPhone || (recPhone === normalizedPhone && recName === cleanName)) {
+        phoneExists = true;
+      }
+      if (recEmail === cleanEmail) {
+        emailExists = true;
+      }
+    }
+
+    if (phoneExists) {
+      errors.phone = 'This phone number already exists in registrations.';
+    }
+    if (emailExists) {
+      errors.email = 'This email address is already registered.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return NextResponse.json({ errors }, { status: 422 });
+    }
+  }
 
   // ── Unique code generation with collision retry ─────────
   let code: string = '';

@@ -94,9 +94,12 @@ export default function CheckinClient() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
-  // Camera QR Scanner Lifecycle
+  // Camera QR Scanner Lifecycle — runs ONLY when mode === 'qr' AND result === null
   useEffect(() => {
-    if (mode !== 'qr' || result?.status === 'loading') return;
+    if (mode !== 'qr' || result !== null) {
+      setIsScannerActive(false);
+      return;
+    }
 
     let scannerInstance: import('html5-qrcode').Html5Qrcode | null = null;
     let isStopped = false;
@@ -116,15 +119,16 @@ export default function CheckinClient() {
             qrbox: { width: 220, height: 220 },
           },
           (decodedText) => {
-            // Extract 6-digit number from decoded text or URL
+            // Extract 6-digit code from decoded text or URL
             const match = decodedText.match(/\b\d{6}\b/);
             const codeFound = match ? match[0] : decodedText.replace(/\D/g, '').slice(0, 6);
 
             if (codeFound && codeFound.length === 6) {
-              executeCheckin(codeFound);
+              // Immediately stop camera scan before processing checkin
               if (scannerInstance && scannerInstance.isScanning) {
                 scannerInstance.stop().catch(() => {});
               }
+              executeCheckin(codeFound);
             }
           },
           () => {
@@ -143,11 +147,12 @@ export default function CheckinClient() {
 
     return () => {
       isStopped = true;
+      setIsScannerActive(false);
       if (scannerInstance && scannerInstance.isScanning) {
         scannerInstance.stop().catch(() => {});
       }
     };
-  }, [mode, result?.status]);
+  }, [mode, result]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -213,140 +218,139 @@ export default function CheckinClient() {
         </div>
       </div>
 
-      {/* Mode Switcher Tabs */}
-      <div className="animate-fade-up" style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '480px', marginBottom: '12px', animationDelay: '0.12s' }}>
-        <button
-          type="button"
-          onClick={() => { setMode('qr'); setResult(null); }}
-          style={{
-            flex: 1,
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            border: mode === 'qr' ? '2px solid var(--legrand-red)' : '1px solid var(--border)',
-            background: mode === 'qr' ? 'rgba(226,0,15,0.12)' : 'rgba(255,255,255,0.03)',
-            color: mode === 'qr' ? 'var(--legrand-red)' : 'var(--text-muted)',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-          }}
-        >
-          📷 Scan QR Code
-        </button>
-        <button
-          type="button"
-          onClick={() => { setMode('manual'); setResult(null); }}
-          style={{
-            flex: 1,
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            border: mode === 'manual' ? '2px solid var(--gold)' : '1px solid var(--border)',
-            background: mode === 'manual' ? 'rgba(200,151,58,0.12)' : 'rgba(255,255,255,0.03)',
-            color: mode === 'manual' ? 'var(--gold)' : 'var(--text-muted)',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-          }}
-        >
-          ⌨️ 6-Digit Code
-        </button>
-      </div>
-
-      {/* Main card */}
-      <div className="card-cream animate-fade-up" style={{ animationDelay: '0.15s' }}>
-
-        {/* 📷 QR SCANNER MODE */}
-        {mode === 'qr' && (
-          <div>
-            <p style={{
-              textAlign: 'center',
-              fontSize: '0.75rem',
+      {/* Mode Switcher Tabs — shown when not viewing a result */}
+      {!result && (
+        <div className="animate-fade-up" style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '480px', marginBottom: '12px', animationDelay: '0.12s' }}>
+          <button
+            type="button"
+            onClick={() => { setMode('qr'); setResult(null); }}
+            style={{
+              flex: 1,
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
               fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              color: 'var(--cream-muted)',
-              marginBottom: '14px',
-            }}>
-              Point Camera at Attendee QR Code
-            </p>
+              border: mode === 'qr' ? '2px solid var(--legrand-red)' : '1px solid var(--border)',
+              background: mode === 'qr' ? 'rgba(226,0,15,0.12)' : 'rgba(255,255,255,0.03)',
+              color: mode === 'qr' ? 'var(--legrand-red)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
+            📷 Scan QR Code
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('manual'); setResult(null); }}
+            style={{
+              flex: 1,
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              border: mode === 'manual' ? '2px solid var(--gold)' : '1px solid var(--border)',
+              background: mode === 'manual' ? 'rgba(200,151,58,0.12)' : 'rgba(255,255,255,0.03)',
+              color: mode === 'manual' ? 'var(--gold)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
+            ⌨️ 6-Digit Code
+          </button>
+        </div>
+      )}
 
-            <div style={{ position: 'relative', width: '100%', background: '#000000', borderRadius: '12px', overflow: 'hidden', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div id="qr-reader" style={{ width: '100%' }} />
-              
-              {!isScannerActive && !scannerError && (
-                <div style={{ position: 'absolute', color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', textAlign: 'center', padding: '20px' }}>
-                  Starting Camera Scanner…
-                </div>
-              )}
+      {/* Main scanning / input card — shown when no result card is active */}
+      {!result && (
+        <div className="card-cream animate-fade-up" style={{ animationDelay: '0.15s' }}>
 
-              {scannerError && (
-                <div style={{ position: 'absolute', padding: '20px', textAlign: 'center', color: '#ff6b6b', fontSize: '0.875rem' }}>
-                  ⚠️ {scannerError}
-                </div>
-              )}
+          {/* 📷 QR SCANNER MODE */}
+          {mode === 'qr' && (
+            <div>
+              <p style={{
+                textAlign: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'var(--cream-muted)',
+                marginBottom: '14px',
+              }}>
+                Point Camera at Attendee QR Code
+              </p>
+
+              <div style={{ position: 'relative', width: '100%', background: '#000000', borderRadius: '12px', overflow: 'hidden', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div id="qr-reader" style={{ width: '100%' }} />
+                
+                {!isScannerActive && !scannerError && (
+                  <div style={{ position: 'absolute', color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', textAlign: 'center', padding: '20px' }}>
+                    Starting Camera Scanner…
+                  </div>
+                )}
+
+                {scannerError && (
+                  <div style={{ position: 'absolute', padding: '20px', textAlign: 'center', color: '#ff6b6b', fontSize: '0.875rem' }}>
+                    ⚠️ {scannerError}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ⌨️ MANUAL 6-DIGIT ENTRY MODE */}
-        {mode === 'manual' && (
-          <form onSubmit={handleSubmit}>
-            <p style={{
-              textAlign: 'center',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              color: 'var(--cream-muted)',
-              marginBottom: '14px',
-            }}>
-              Enter 6-Digit Attendance Code
-            </p>
+          {/* ⌨️ MANUAL 6-DIGIT ENTRY MODE */}
+          {mode === 'manual' && (
+            <form onSubmit={handleSubmit}>
+              <p style={{
+                textAlign: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'var(--cream-muted)',
+                marginBottom: '14px',
+              }}>
+                Enter 6-Digit Attendance Code
+              </p>
 
-            <input
-              id="checkin-code-input"
-              ref={inputRef}
-              type="text"
-              inputMode="numeric"
-              pattern="\d{6}"
-              maxLength={6}
-              value={code}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                setCode(val);
-                if (result) setResult(null);
-              }}
-              placeholder="_ _ _ _ _ _"
-              className="input-cream checkin-input"
-              autoComplete="off"
-              autoFocus
-              style={{ marginBottom: '16px' }}
-            />
+              <input
+                id="checkin-code-input"
+                ref={inputRef}
+                type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                value={code}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setCode(val);
+                }}
+                placeholder="_ _ _ _ _ _"
+                className="input-cream checkin-input"
+                autoComplete="off"
+                autoFocus
+                style={{ marginBottom: '16px' }}
+              />
 
-            <button
-              id="checkin-submit-btn"
-              type="submit"
-              className="btn btn-legrand"
-              disabled={code.length !== 6 || result?.status === 'loading'}
-            >
-              {result?.status === 'loading' ? (
-                <><span className="spinner" /> Checking…</>
-              ) : (
-                'Check In Guest →'
-              )}
-            </button>
-          </form>
-        )}
-      </div>
+              <button
+                id="checkin-submit-btn"
+                type="submit"
+                className="btn btn-legrand"
+                disabled={code.length !== 6}
+              >
+                Check In Guest →
+              </button>
+            </form>
+          )}
+        </div>
+      )}
 
       {/* Result card */}
       {result && result.status !== 'loading' && result.status !== 'idle' && (

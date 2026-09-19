@@ -75,7 +75,10 @@ export default function AdminDashboard({ registrations }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   
-  // Custom message template state
+  // Selection state for batch email
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Global custom template editor state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [customSubject, setCustomSubject] = useState('Your Entry Pass & Code for {event_name}');
   const [customEmailBody, setCustomEmailBody] = useState(
@@ -85,16 +88,24 @@ export default function AdminDashboard({ registrations }: Props) {
     'Hello {name}, your attendance code for Legrand Experience Evening is *{code}*. Venue: {venue} on {date}. Show this message or QR at entrance!'
   );
 
-  // Single recipient message modal state
+  // Single recipient modal state
   const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
   const [modalMode, setModalMode] = useState<'email' | 'whatsapp' | null>(null);
   const [modalSubject, setModalSubject] = useState('');
   const [modalBody, setModalBody] = useState('');
-  
+
+  // Batch broadcast modal state
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchTarget, setBatchTarget] = useState<'selected' | 'all'>('selected');
+  const [batchSubject, setBatchSubject] = useState('');
+  const [batchBody, setBatchBody] = useState('');
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ total: number; successCount: number; failedCount: number } | null>(null);
+
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<Record<string, 'ok' | 'err'>>({});
 
-  const activeInputRef = useRef<'subject' | 'emailBody' | 'waBody'>('emailBody');
+  const activeInputRef = useRef<'subject' | 'emailBody' | 'waBody' | 'batchSubject' | 'batchBody'>('emailBody');
 
   const stats = useMemo(() => ({
     total: registrations.length,
@@ -116,6 +127,26 @@ export default function AdminDashboard({ registrations }: Props) {
     );
   }, [registrations, search]);
 
+  const isAllSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+
+  function toggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((r) => r.id)));
+    }
+  }
+
+  function toggleSelectRow(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  }
+
   function insertTag(tag: string) {
     if (activeInputRef.current === 'subject') {
       setCustomSubject((prev) => prev + tag);
@@ -123,10 +154,14 @@ export default function AdminDashboard({ registrations }: Props) {
       setCustomEmailBody((prev) => prev + tag);
     } else if (activeInputRef.current === 'waBody') {
       setCustomWaBody((prev) => prev + tag);
+    } else if (activeInputRef.current === 'batchSubject') {
+      setBatchSubject((prev) => prev + tag);
+    } else if (activeInputRef.current === 'batchBody') {
+      setBatchBody((prev) => prev + tag);
     }
   }
 
-  function openSendModal(reg: Registration, mode: 'email' | 'whatsapp') {
+  function openSingleModal(reg: Registration, mode: 'email' | 'whatsapp') {
     setSelectedReg(reg);
     setModalMode(mode);
 
@@ -153,7 +188,15 @@ export default function AdminDashboard({ registrations }: Props) {
     }
   }
 
-  async function handleSendEmailSubmit() {
+  function openBatchModal(target: 'selected' | 'all') {
+    setBatchTarget(target);
+    setBatchSubject(customSubject);
+    setBatchBody(customEmailBody);
+    setBatchResult(null);
+    setShowBatchModal(true);
+  }
+
+  async function handleSendSingleEmail() {
     if (!selectedReg) return;
     const id = selectedReg.id;
     setResendingId(id);
@@ -171,6 +214,7 @@ export default function AdminDashboard({ registrations }: Props) {
 
       setResendStatus((prev) => ({ ...prev, [id]: res.ok ? 'ok' : 'err' }));
       setTimeout(() => setResendStatus((prev) => { const n = { ...prev }; delete n[id]; return n; }), 3000);
+      if (res.ok) router.refresh();
     } catch {
       setResendStatus((prev) => ({ ...prev, [id]: 'err' }));
     } finally {
@@ -180,7 +224,7 @@ export default function AdminDashboard({ registrations }: Props) {
     }
   }
 
-  function handleSendWhatsAppSubmit() {
+  function handleSendSingleWhatsApp() {
     if (!selectedReg) return;
     const cleanPhone = selectedReg.phone.replace(/\D/g, '');
     const encodedMsg = encodeURIComponent(modalBody);
@@ -190,11 +234,49 @@ export default function AdminDashboard({ registrations }: Props) {
     setModalMode(null);
   }
 
+  async function handleBatchEmailBroadcast() {
+    setBatchLoading(true);
+    setBatchResult(null);
+
+    const idsToSend = batchTarget === 'selected' ? Array.from(selectedIds) : [];
+
+    try {
+      const res = await fetch('/api/admin/batch-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetAll: batchTarget === 'all',
+          ids: idsToSend,
+          customSubject: batchSubject,
+          customMessage: batchBody,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setBatchResult({
+          total: data.total,
+          successCount: data.successCount,
+          failedCount: data.failedCount,
+        });
+        router.refresh();
+      } else {
+        alert(data.error || 'Failed to send batch broadcast');
+      }
+    } catch {
+      alert('Network error during batch email broadcast.');
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/admin/auth', { method: 'DELETE' });
     router.refresh();
     router.push('/admin');
   }
+
+  const targetCount = batchTarget === 'all' ? registrations.length : selectedIds.size;
 
   return (
     <div className="admin-shell">
@@ -204,13 +286,13 @@ export default function AdminDashboard({ registrations }: Props) {
           <LegrandLogo height={24} />
           <span className="admin-brand-text" style={{ marginLeft: '12px' }}>Admin Dashboard</span>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn btn-legrand btn-sm"
             onClick={() => setShowTemplateModal(!showTemplateModal)}
           >
-            💬 Custom Message Templates
+            💬 Edit Global Templates
           </button>
           <button id="export-csv-btn" className="btn btn-gold btn-sm" onClick={() => exportCSV(registrations)}>
             📥 Export CSV
@@ -280,7 +362,7 @@ export default function AdminDashboard({ registrations }: Props) {
               {/* Email Template */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '6px' }}>
-                  📧 Email Subject:
+                  📧 Default Email Subject:
                 </label>
                 <input
                   type="text"
@@ -292,7 +374,7 @@ export default function AdminDashboard({ registrations }: Props) {
                 />
 
                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '6px' }}>
-                  📧 Email Message Body:
+                  📧 Default Email Message Body:
                 </label>
                 <textarea
                   rows={5}
@@ -307,7 +389,7 @@ export default function AdminDashboard({ registrations }: Props) {
               {/* WhatsApp Template */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '6px' }}>
-                  💬 WhatsApp Custom Message:
+                  💬 Default WhatsApp Message:
                 </label>
                 <textarea
                   rows={8}
@@ -342,8 +424,8 @@ export default function AdminDashboard({ registrations }: Props) {
           </div>
         </div>
 
-        {/* ── Search bar ── */}
-        <div className="toolbar">
+        {/* ── Toolbar with Batch Broadcast Buttons ── */}
+        <div className="toolbar" style={{ flexWrap: 'wrap', gap: '12px' }}>
           <input
             id="admin-search-input"
             type="text"
@@ -351,10 +433,32 @@ export default function AdminDashboard({ registrations }: Props) {
             placeholder="Search by name, company, email, or code…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 1, minWidth: '220px' }}
           />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-            {filtered.length} / {registrations.length}
-          </span>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {selectedIds.size > 0 && (
+              <button
+                type="button"
+                className="btn btn-legrand btn-sm"
+                onClick={() => openBatchModal('selected')}
+              >
+                📧 Send Email to Selected ({selectedIds.size})
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="btn btn-gold btn-sm"
+              onClick={() => openBatchModal('all')}
+            >
+              📧 Send Email to ALL ({registrations.length})
+            </button>
+
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+              {filtered.length} / {registrations.length}
+            </span>
+          </div>
         </div>
 
         {/* ── Table ── */}
@@ -362,6 +466,15 @@ export default function AdminDashboard({ registrations }: Props) {
           <table>
             <thead>
               <tr>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    title="Select / Deselect All"
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                </th>
                 <th>Name</th>
                 <th>Company</th>
                 <th>Designation</th>
@@ -371,7 +484,6 @@ export default function AdminDashboard({ registrations }: Props) {
                 <th style={{ textAlign: 'center' }}>Email</th>
                 <th style={{ textAlign: 'center' }}>WA</th>
                 <th style={{ textAlign: 'center' }}>Attended</th>
-                <th>Registered</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -384,7 +496,15 @@ export default function AdminDashboard({ registrations }: Props) {
                 </tr>
               ) : (
                 filtered.map((reg) => (
-                  <tr key={reg.id}>
+                  <tr key={reg.id} style={{ background: selectedIds.has(reg.id) ? 'rgba(226,0,15,0.06)' : undefined }}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(reg.id)}
+                        onChange={() => toggleSelectRow(reg.id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </td>
                     <td className="td-primary">{reg.visitor_name}</td>
                     <td>{reg.company_name}</td>
                     <td>{reg.designation}</td>
@@ -416,31 +536,26 @@ export default function AdminDashboard({ registrations }: Props) {
                         ? <span className="badge badge-success">✓</span>
                         : <span className="badge badge-muted">—</span>}
                     </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {new Date(reg.created_at).toLocaleDateString('en-IN', {
-                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                      })}
-                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button
                           type="button"
                           className="btn btn-dark btn-sm"
-                          onClick={() => openSendModal(reg, 'email')}
+                          onClick={() => openSingleModal(reg, 'email')}
                           disabled={resendingId === reg.id}
                           style={{ fontSize: '0.75rem', padding: '4px 8px' }}
                           title="Send Custom Email"
                         >
-                          📧 Custom Email
+                          📧 Email
                         </button>
                         <button
                           type="button"
                           className="btn btn-gold btn-sm"
-                          onClick={() => openSendModal(reg, 'whatsapp')}
+                          onClick={() => openSingleModal(reg, 'whatsapp')}
                           style={{ fontSize: '0.75rem', padding: '4px 8px' }}
                           title="Send Custom WhatsApp"
                         >
-                          💬 WhatsApp
+                          💬 WA
                         </button>
                       </div>
                     </td>
@@ -521,7 +636,7 @@ export default function AdminDashboard({ registrations }: Props) {
                 <button
                   type="button"
                   className="btn btn-legrand"
-                  onClick={handleSendEmailSubmit}
+                  onClick={handleSendSingleEmail}
                   disabled={resendingId === selectedReg.id}
                 >
                   {resendingId === selectedReg.id ? 'Sending…' : 'Send Email Now →'}
@@ -530,11 +645,155 @@ export default function AdminDashboard({ registrations }: Props) {
                 <button
                   type="button"
                   className="btn btn-gold"
-                  onClick={handleSendWhatsAppSubmit}
+                  onClick={handleSendSingleWhatsApp}
                 >
                   Open WhatsApp Chat →
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BATCH EMAIL BROADCAST MODAL ── */}
+      {showBatchModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px',
+        }}>
+          <div className="card-cream animate-fade-up" style={{ width: '100%', maxWidth: '600px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--cream-text)', margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                🚀 Batch Custom Email Broadcast
+              </h3>
+              <button
+                type="button"
+                className="btn btn-dark btn-sm"
+                onClick={() => setShowBatchModal(false)}
+                disabled={batchLoading}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{
+              background: 'rgba(226,0,15,0.06)',
+              border: '1px solid rgba(226,0,15,0.2)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '10px 14px',
+              marginBottom: '16px',
+            }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--cream-text)', fontWeight: 600 }}>
+                Target Recipients: <span style={{ color: 'var(--legrand-red)' }}>{batchTarget === 'all' ? `ALL Attendees (${registrations.length})` : `Selected Attendees (${selectedIds.size})`}</span>
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '0.775rem', color: 'var(--cream-muted)' }}>
+                Each recipient will receive an individualized email with their own name, company, unique 6-digit code, and attached QR code image.
+              </p>
+            </div>
+
+            <p style={{ fontSize: '0.75rem', color: 'var(--cream-muted)', marginBottom: '8px' }}>
+              Available placeholders:
+            </p>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+              {['{name}', '{code}', '{company}', '{designation}', '{date}', '{venue}'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => insertTag(tag)}
+                  disabled={batchLoading}
+                  style={{
+                    background: 'rgba(226,0,15,0.08)',
+                    border: '1px solid var(--legrand-red)',
+                    color: 'var(--legrand-red)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '4px' }}>
+                Batch Email Subject:
+              </label>
+              <input
+                type="text"
+                value={batchSubject}
+                onFocus={() => { activeInputRef.current = 'batchSubject'; }}
+                onChange={(e) => setBatchSubject(e.target.value)}
+                className="input-cream"
+                disabled={batchLoading}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '4px' }}>
+                Batch Custom Message Content:
+              </label>
+              <textarea
+                rows={6}
+                value={batchBody}
+                onFocus={() => { activeInputRef.current = 'batchBody'; }}
+                onChange={(e) => setBatchBody(e.target.value)}
+                className="input-cream"
+                disabled={batchLoading}
+                style={{ fontFamily: 'inherit', fontSize: '0.875rem' }}
+              />
+            </div>
+
+            {/* Batch Results Banner */}
+            {batchResult && (
+              <div style={{
+                background: 'var(--success-dim)',
+                border: '1px solid rgba(34,197,94,0.3)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                textAlign: 'center',
+              }}>
+                <p style={{ margin: 0, color: 'var(--success)', fontWeight: 700, fontSize: '0.95rem' }}>
+                  🎉 Broadcast Completed Successfully!
+                </p>
+                <p style={{ margin: '4px 0 0', color: 'var(--cream-text)', fontSize: '0.85rem' }}>
+                  Successfully sent: <strong>{batchResult.successCount}</strong> / {batchResult.total} emails
+                  {batchResult.failedCount > 0 && <span style={{ color: 'var(--danger)', marginLeft: '8px' }}>(Failed: {batchResult.failedCount})</span>}
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={() => setShowBatchModal(false)}
+                disabled={batchLoading}
+              >
+                {batchResult ? 'Close' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-legrand"
+                onClick={handleBatchEmailBroadcast}
+                disabled={batchLoading || targetCount === 0}
+              >
+                {batchLoading ? (
+                  <><span className="spinner" /> Sending to {targetCount} recipients…</>
+                ) : (
+                  `🚀 Send Batch Email (${targetCount}) →`
+                )}
+              </button>
             </div>
           </div>
         </div>

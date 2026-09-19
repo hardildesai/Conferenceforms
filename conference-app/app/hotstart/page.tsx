@@ -1,4 +1,4 @@
-// app/admin/page.tsx
+// app/hotstart/page.tsx
 // Admin dashboard — password-gated server component.
 // Fetches all registrations and renders the client dashboard.
 
@@ -21,7 +21,7 @@ export default async function AdminPage() {
   const authenticated = await isAdminAuthenticated();
 
   if (!authenticated) {
-    return <AdminLoginForm redirectTo="/admin" />;
+    return <AdminLoginForm redirectTo="/hotstart" />;
   }
 
   const supabase = createServerSupabaseClient();

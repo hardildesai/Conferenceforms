@@ -274,7 +274,7 @@ export default function AdminDashboard({ registrations }: Props) {
   async function handleLogout() {
     await fetch('/api/admin/auth', { method: 'DELETE' });
     router.refresh();
-    router.push('/admin');
+    router.push('/hotstart');
   }
 
   const targetCount = batchTarget === 'all' ? registrations.length : selectedIds.size;

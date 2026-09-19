@@ -459,7 +459,7 @@ export default function CheckinClient() {
 
       {/* Footer link */}
       <div className="animate-fade-up" style={{ marginTop: '28px', animationDelay: '0.25s', paddingBottom: '8px' }}>
-        <a href="/admin" style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', textDecoration: 'none' }}>
+        <a href="/hotstart" style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', textDecoration: 'none' }}>
           Admin Dashboard →
         </a>
       </div>

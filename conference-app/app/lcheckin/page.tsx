@@ -1,8 +1,8 @@
-// app/checkin/page.tsx
+// app/lcheckin/page.tsx
 // Event-day check-in page — password gated, mobile-first.
 
 import { isAdminAuthenticated } from '@/lib/auth';
-import AdminLoginForm from '@/app/admin/AdminLoginForm';
+import AdminLoginForm from '@/app/hotstart/AdminLoginForm';
 import CheckinClient from './CheckinClient';
 import type { Metadata } from 'next';
 
@@ -18,7 +18,7 @@ export default async function CheckinPage() {
   const authenticated = await isAdminAuthenticated();
 
   if (!authenticated) {
-    return <AdminLoginForm redirectTo="/checkin" />;
+    return <AdminLoginForm redirectTo="/lcheckin" />;
   }
 
   return <CheckinClient />;

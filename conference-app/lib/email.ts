@@ -1,7 +1,7 @@
 // lib/email.ts
-// Email delivery via Resend with custom templates and inline QR code attachment.
+// Email delivery via Brevo Transactional Email API with inline QR code attachment.
 
-import { Resend } from 'resend';
+import { BrevoClient } from '@getbrevo/brevo';
 
 const EVENT_NAME = 'Exclusive Legrand Experience Evening';
 const EVENT_DATE = 'Thursday, 24 September 2026';
@@ -53,7 +53,19 @@ export async function sendConfirmationEmail({
   customSubject,
   customBody,
 }: SendConfirmationEmailParams): Promise<void> {
-  const resend = new Resend(process.env.RESEND_API_KEY!);
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.SENDER_EMAIL;
+  const senderName = process.env.SENDER_NAME || 'Legrand Conference Team';
+
+  if (!apiKey) {
+    throw new Error('Missing BREVO_API_KEY environment variable');
+  }
+
+  if (!senderEmail) {
+    throw new Error('Missing SENDER_EMAIL environment variable');
+  }
+
+  const brevo = new BrevoClient({ apiKey });
 
   const subject = customSubject
     ? substitutePlaceholders(customSubject, { visitorName, companyName, designation, code })
@@ -63,22 +75,31 @@ export async function sendConfirmationEmail({
 
   const attachments = qrCodeBuffer && qrCodeBuffer.length > 0 ? [
     {
-      filename: `attendance-code-${code}.png`,
-      content: qrCodeBuffer,
-      contentType: 'image/png',
+      name: `attendance-code-${code}.png`,
+      content: qrCodeBuffer.toString('base64'),
     },
-  ] : [];
+  ] : undefined;
 
-  const { error } = await resend.emails.send({
-    from: process.env.FROM_EMAIL!,
-    to,
-    subject,
-    html,
-    attachments,
-  });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
+  try {
+    await brevo.transactionalEmails.sendTransacEmail({
+      subject,
+      htmlContent: html,
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [{ email: to, name: visitorName }],
+      attachment: attachments,
+    });
+  } catch (err: unknown) {
+    let errorDetails = 'Brevo email send failed';
+    if (typeof err === 'object' && err !== null && 'body' in err) {
+      errorDetails = JSON.stringify((err as { body: unknown }).body);
+    } else if (err instanceof Error) {
+      errorDetails = err.message;
+    }
+    console.error('Brevo API error:', errorDetails);
+    throw new Error(`Brevo Error: ${errorDetails}`);
   }
 }
 
@@ -182,4 +203,3 @@ function buildEmailHtml({
 </html>
   `.trim();
 }
-

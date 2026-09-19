@@ -97,35 +97,120 @@ export default function RegistrationPage() {
       </div>
 
       {/* ── Event Identity ── */}
-      <div className="event-header animate-fade-up" style={{ animationDelay: '0.1s' }}>
+      <div className="event-header animate-fade-up" style={{ animationDelay: '0.1s', width: '100%', maxWidth: '640px' }}>
         <div className="gold-divider" />
-        <p className="event-invite-label">You are cordially invited to an</p>
-        <h1 className="event-title">
-          <span className="red">Exclusive Legrand Experience Evening:</span>
+        <p style={{
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--gold-light)',
+          marginBottom: '10px',
+        }}>
+          ✨ You are cordially invited to ✨
+        </p>
+
+        <h1 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 'clamp(1.8rem, 6vw, 2.6rem)',
+          fontWeight: 800,
+          lineHeight: 1.2,
+          marginBottom: '8px',
+        }}>
+          <span style={{ color: 'var(--legrand-red)', textShadow: '0 2px 20px rgba(226,0,15,0.4)' }}>
+            Exclusive Legrand Experience Evening
+          </span>
         </h1>
-        <p className="event-subtitle">Unveiling Next-Generation Power Solutions</p>
+
+        <p style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: '1.1rem',
+          color: 'var(--text-primary)',
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          marginBottom: '16px',
+        }}>
+          Unveiling Next-Generation Power Solutions
+        </p>
+
         <div className="gold-divider-thick" />
 
-        {/* Event detail pills */}
-        <div className="event-detail-row">
-          <span className="event-pill">
-            <span className="pill-icon">📅</span>
-            Thursday, 24 September 2026
-          </span>
-          <span className="event-pill">
-            <span className="pill-icon">🕡</span>
-            6:30 PM Onwards
-          </span>
-          <a
-            href="https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="event-pill"
-            style={{ textDecoration: 'none', cursor: 'pointer' }}
-          >
-            <span className="pill-icon">📍</span>
-            Megma Restaurant, Odhav, Ahmedabad ↗
-          </a>
+        {/* ── Highlighted Large Event Details Grid ── */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '12px',
+          marginTop: '20px',
+          textAlign: 'center',
+        }}>
+          {/* Date Box */}
+          <div style={{
+            background: 'rgba(200,151,58,0.12)',
+            border: '1.5px solid var(--gold-border)',
+            borderRadius: '12px',
+            padding: '16px 14px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          }}>
+            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--gold-light)', margin: '0 0 4px' }}>
+              📅 Event Date
+            </p>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+              Thursday, 24 Sep 2026
+            </p>
+          </div>
+
+          {/* Time Box */}
+          <div style={{
+            background: 'rgba(200,151,58,0.12)',
+            border: '1.5px solid var(--gold-border)',
+            borderRadius: '12px',
+            padding: '16px 14px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          }}>
+            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--gold-light)', margin: '0 0 4px' }}>
+              🕡 Time
+            </p>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+              6:30 PM Onwards
+            </p>
+          </div>
+
+          {/* Venue Box */}
+          <div style={{
+            gridColumn: '1 / -1',
+            background: 'rgba(226,0,15,0.12)',
+            border: '1.5px solid rgba(226,0,15,0.4)',
+            borderRadius: '12px',
+            padding: '18px 20px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          }}>
+            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--legrand-red)', margin: '0 0 6px' }}>
+              📍 Venue Location
+            </p>
+            <p style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', margin: '0 0 10px', lineHeight: 1.3 }}>
+              Megma Restaurant &amp; Banquets, Odhav, Ahmedabad
+            </p>
+            <a
+              href="https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'var(--legrand-red)',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                padding: '8px 18px',
+                borderRadius: '100px',
+                textDecoration: 'none',
+                boxShadow: '0 3px 14px rgba(226,0,15,0.4)',
+              }}
+            >
+              🗺️ Open in Google Maps ↗
+            </a>
+          </div>
         </div>
       </div>
 

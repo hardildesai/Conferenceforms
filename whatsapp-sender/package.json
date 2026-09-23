@@ -2,6 +2,7 @@
   "name": "whatsapp-sender",
   "version": "1.0.0",
   "description": "Standalone WhatsApp batch sender for conference attendance codes using Baileys.",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "start": "ts-node --esm src/index.ts",
@@ -12,11 +13,14 @@
     "@supabase/supabase-js": "^2.49.0",
     "@whiskeysockets/baileys": "^6.7.16",
     "dotenv": "^16.5.0",
-    "qrcode": "^1.5.4"
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/qrcode": "^1.5.5",
+    "@types/qrcode-terminal": "^0.12.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.0"
   }

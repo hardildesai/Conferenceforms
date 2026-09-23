@@ -28,9 +28,13 @@ import {
 import { Boom } from '@hapi/boom';
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
+import qrcodeTerminal from 'qrcode-terminal';
+import pino from 'pino';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+
+const logger = pino({ level: 'silent' });
 
 // ── Config ────────────────────────────────────────────────
 const SUPABASE_URL = process.env.SUPABASE_URL!;
@@ -45,19 +49,33 @@ const MIN_DELAY_MS = Number(process.env.MIN_DELAY_MS ?? 20_000);
 const MAX_DELAY_MS = Number(process.env.MAX_DELAY_MS ?? 90_000);
 
 const AUTH_FOLDER = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'auth_info_baileys');
+const TEMPLATE_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'template.txt');
 
-// Message sent via WhatsApp — supports process.env.CUSTOM_WHATSAPP_TEMPLATE or default format
+// Message sent via WhatsApp — reads template.txt or falls back to default
 const defaultWaTemplate =
-  `Dear {name},\n\nYou are cordially invited to the *Exclusive Legrand Experience Evening* 🎉\n*Unveiling Next-Generation Power Solutions*\n\n📅 *Date:* {date}\n🕡 *Time:* 6:30 PM Onwards\n📍 *Venue:* {venue}\n🗺️ *Location:* https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6\n\nYour attendance code is:\n\n*${'{code}'}*\n\nPlease show this code (or the QR image) to our team at the entrance for check-in.\n\nWe look forward to welcoming you!\n\n— Team Legrand`;
+  `Dear {name},\n\nYou are cordially invited to the *Exclusive Legrand Experience Evening* 🎉\n*Unveiling Next-Generation Power Solutions*\n\n📅 *Date:* {date}\n🕡 *Time:* 6:30 PM Onwards\n📍 *Venue:* {venue}\n🗺️ *Location:* {maps_link}\n\nYour attendance code is:\n\n*{code}*\n\nPlease show this code (or the QR image attached) to our team at the entrance for check-in.\n\nWe look forward to welcoming you!\n\n— Team Legrand`;
+
+function getRawTemplate(): string {
+  if (fs.existsSync(TEMPLATE_FILE)) {
+    const text = fs.readFileSync(TEMPLATE_FILE, 'utf-8').trim();
+    if (text) return text;
+  }
+  // Create template.txt if it doesn't exist
+  fs.writeFileSync(TEMPLATE_FILE, defaultWaTemplate, 'utf-8');
+  return defaultWaTemplate;
+}
 
 const MESSAGE_TEMPLATE = (name: string, code: string, company: string = '') => {
-  const template = process.env.CUSTOM_WHATSAPP_TEMPLATE || defaultWaTemplate;
-  return template
+  const raw = getRawTemplate();
+  return raw
     .replace(/\{name\}/gi, name)
+    .replace(/\{visitor_name\}/gi, name)
     .replace(/\{code\}/gi, code)
     .replace(/\{company\}/gi, company)
+    .replace(/\{company_name\}/gi, company)
     .replace(/\{date\}/gi, 'Thursday, 24 September 2026')
-    .replace(/\{venue\}/gi, 'Megma Restaurant and Banquets, Odhav, Ahmedabad');
+    .replace(/\{venue\}/gi, 'Megma Restaurant and Banquets, Odhav, Ahmedabad')
+    .replace(/\{maps_link\}/gi, 'https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6');
 };
 
 
@@ -85,8 +103,6 @@ function toJid(phone: string): string {
   let digits = phone.replace(/\D/g, '');
   // Remove leading double-zero country code prefix (e.g. 0091 → 91)
   if (digits.startsWith('00')) digits = digits.slice(2);
-  // Remove leading single zero that isn't part of a country code (e.g. 098765 → 98765 — incorrect for intl)
-  // Only strip leading zero if length suggests a local number (less than 10 digits after stripping prefix)
   return `${digits}@s.whatsapp.net`;
 }
 
@@ -101,13 +117,24 @@ async function generateQRBuffer(code: string): Promise<Buffer> {
 
 // ── Batch send ────────────────────────────────────────────
 async function runBatch(sock: WASocket): Promise<void> {
-  console.log('\n📋 Fetching pending registrations from Supabase…');
+  const sendToAll = process.env.SEND_TO_ALL === 'true';
 
-  const { data: pending, error } = await supabase
+  if (sendToAll) {
+    console.log('\n📋 [SEND_TO_ALL active] Fetching ALL registered attendees from Supabase…');
+  } else {
+    console.log('\n📋 Fetching unsent (pending) registrations from Supabase…');
+  }
+
+  let query = supabase
     .from('registrations')
     .select('id, visitor_name, company_name, phone, code')
-    .eq('whatsapp_sent', false)
     .order('created_at', { ascending: true });
+
+  if (!sendToAll) {
+    query = query.eq('whatsapp_sent', false);
+  }
+
+  const { data: pending, error } = await query;
 
   if (error) {
     console.error('❌ Supabase fetch error:', error.message);
@@ -115,7 +142,7 @@ async function runBatch(sock: WASocket): Promise<void> {
   }
 
   if (!pending || pending.length === 0) {
-    console.log('✅ No pending registrations. All done!');
+    console.log('✅ No registrations matching send criteria. All done!');
     process.exit(0);
   }
 
@@ -179,10 +206,9 @@ async function connectAndRun(): Promise<void> {
     version,
     auth: {
       creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, console as never),
+      keys: makeCacheableSignalKeyStore(state.keys, logger as never),
     },
-    printQRInTerminal: true,       // Prints QR to terminal — scan with WhatsApp
-    logger: console as never,      // Suppress verbose Baileys logs
+    logger: logger as never,      // Suppress verbose Baileys logs
     browser: ['Conference Sender', 'Chrome', '124.0.0'],
     connectTimeoutMs: 60_000,
     retryRequestDelayMs: 2_000,
@@ -194,7 +220,9 @@ async function connectAndRun(): Promise<void> {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log('\n📱 Scan the QR code above with your WhatsApp to log in.\n');
+      console.log('\n📱 Scan the QR code below with your WhatsApp to log in:\n');
+      qrcodeTerminal.generate(qr, { small: true });
+      console.log('');
     }
 
     if (connection === 'close') {

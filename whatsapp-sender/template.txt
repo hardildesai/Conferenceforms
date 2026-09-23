@@ -1,0 +1,19 @@
+Dear {name},
+
+You are cordially invited to the *Exclusive Legrand Experience Evening* 🎉
+*Unveiling Next-Generation Power Solutions*
+
+📅 *Date:* {date}
+🕡 *Time:* 6:30 PM Onwards
+📍 *Venue:* {venue}
+🗺️ *Location:* {maps_link}
+
+Your attendance code is:
+
+*{code}*
+
+Please show this code (or the QR image attached) to our team at the entrance for check-in.
+
+We look forward to welcoming you!
+
+— Team Legrand

@@ -214,156 +214,42 @@ export default function RegistrationPage() {
         </div>
       </div>
 
-      {/* ── Registration Form (Cream Card) ── */}
+      {/* ── Registration Concluded Card (Cream Card) ── */}
       <div
         className="card-cream animate-fade-up"
-        style={{ marginTop: '8px', animationDelay: '0.2s' }}
+        style={{ marginTop: '8px', animationDelay: '0.2s', textAlign: 'center', padding: '36px 24px' }}
       >
-        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--cream-text)', textAlign: 'center', marginBottom: '6px', fontSize: '1.2rem', fontWeight: 700 }}>
-          Register Your Attendance
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'rgba(226,0,15,0.08)',
+          border: '1px solid rgba(226,0,15,0.25)',
+          borderRadius: '100px',
+          padding: '6px 16px',
+          marginBottom: '16px',
+        }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--legrand-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            🎉 Event Concluded
+          </span>
+        </div>
+
+        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--cream-text)', marginBottom: '12px', fontSize: '1.5rem', fontWeight: 700 }}>
+          Thank You for Your Support!
         </h2>
-        <p style={{ textAlign: 'center', color: 'var(--cream-muted)', fontSize: '0.8125rem', marginBottom: '24px' }}>
-          All fields are required. Your code will be emailed instantly.
+
+        <p style={{ color: 'var(--cream-text)', fontSize: '0.95rem', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto 16px' }}>
+          Registration for the <strong>Exclusive Legrand Experience Evening</strong> is now officially closed.
         </p>
 
-        <form onSubmit={handleSubmit} noValidate>
-          {submitError && (
-            <div style={{
-              background: 'rgba(226,0,15,0.08)',
-              border: '1px solid rgba(226,0,15,0.3)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '12px 16px',
-              marginBottom: '20px',
-            }}>
-              <p style={{ color: 'var(--legrand-red)', margin: 0, fontSize: '0.875rem', fontWeight: 500 }}>
-                ⚠️ {submitError}
-              </p>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="company_name">
-              Company Name<span className="required-star">*</span>
-            </label>
-            <input
-              id="company_name"
-              name="company_name"
-              type="text"
-              value={form.company_name}
-              onChange={handleChange}
-              placeholder="Acme Power Solutions"
-              className={`input-cream${fieldErrors.company_name ? ' error' : ''}`}
-              autoComplete="organization"
-              disabled={loading}
-            />
-            {fieldErrors.company_name && (
-              <span className="field-error">{fieldErrors.company_name}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="visitor_name">
-              Full Name<span className="required-star">*</span>
-            </label>
-            <input
-              id="visitor_name"
-              name="visitor_name"
-              type="text"
-              value={form.visitor_name}
-              onChange={handleChange}
-              placeholder="Jane Smith"
-              className={`input-cream${fieldErrors.visitor_name ? ' error' : ''}`}
-              autoComplete="name"
-              disabled={loading}
-            />
-            {fieldErrors.visitor_name && (
-              <span className="field-error">{fieldErrors.visitor_name}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="designation">
-              Designation<span className="required-star">*</span>
-            </label>
-            <input
-              id="designation"
-              name="designation"
-              type="text"
-              value={form.designation}
-              onChange={handleChange}
-              placeholder="Head of Electrical Engineering"
-              className={`input-cream${fieldErrors.designation ? ' error' : ''}`}
-              disabled={loading}
-            />
-            {fieldErrors.designation && (
-              <span className="field-error">{fieldErrors.designation}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">
-              Email Address<span className="required-star">*</span>
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="jane@company.com"
-              className={`input-cream${fieldErrors.email ? ' error' : ''}`}
-              autoComplete="email"
-              inputMode="email"
-              disabled={loading}
-            />
-            {fieldErrors.email && (
-              <span className="field-error">{fieldErrors.email}</span>
-            )}
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label htmlFor="phone">
-              Phone Number<span className="required-star">*</span>
-            </label>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              value={form.phone}
-              onChange={handleChange}
-              placeholder="+91 98765 43210"
-              className={`input-cream${fieldErrors.phone ? ' error' : ''}`}
-              autoComplete="tel"
-              inputMode="tel"
-              disabled={loading}
-            />
-            {fieldErrors.phone && (
-              <span className="field-error">{fieldErrors.phone}</span>
-            )}
-          </div>
-
-          <button
-            id="register-submit-btn"
-            type="submit"
-            className="btn btn-legrand"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <span className="spinner" />
-                Registering…
-              </>
-            ) : (
-              'Confirm Registration →'
-            )}
-          </button>
-        </form>
+        <p style={{ color: 'var(--cream-muted)', fontSize: '0.875rem', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto' }}>
+          We extend our sincere appreciation and heartfelt thanks to all our esteemed guests, partners, and attendees for making this evening a grand success!
+        </p>
 
         {/* Footer info */}
-        <div className="divider" style={{ marginTop: '20px', borderColor: 'var(--cream-border)' }} />
-        <p style={{ textAlign: 'center', fontSize: '0.775rem', color: 'var(--cream-muted)', lineHeight: 1.6 }}>
-          A unique attendance code will be emailed immediately after registration.<br/>
-          For assistance: <strong>Mayur Patel · Harshal Buch · Hemant Kelaskar</strong>
+        <div className="divider" style={{ marginTop: '24px', borderColor: 'var(--cream-border)' }} />
+        <p style={{ textAlign: 'center', fontSize: '0.775rem', color: 'var(--cream-muted)', lineHeight: 1.6, margin: 0 }}>
+          For inquiries or support: <strong>Mayur Patel · Harshal Buch · Hemant Kelaskar</strong>
         </p>
       </div>
 

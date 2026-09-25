@@ -32,9 +32,25 @@ import qrcodeTerminal from 'qrcode-terminal';
 import pino from 'pino';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as readline from 'readline';
 import { fileURLToPath } from 'url';
 
 const logger = pino({ level: 'silent' });
+
+function askConfirmation(query: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(query, (answer) => {
+      rl.close();
+      const trimmed = answer.trim().toLowerCase();
+      resolve(trimmed === '' || trimmed === 'y' || trimmed === 'yes');
+    });
+  });
+}
 
 // ── Config ────────────────────────────────────────────────
 const SUPABASE_URL = process.env.SUPABASE_URL!;
@@ -146,7 +162,28 @@ async function runBatch(sock: WASocket): Promise<void> {
     process.exit(0);
   }
 
-  console.log(`📨 Found ${pending.length} pending registration(s). Starting batch send…\n`);
+  // ── PREVIEW & CONFIRMATION ──
+  console.log('\n══════════════════════════════════════════════════════════');
+  console.log(` 📢 BATCH SEND PREVIEW`);
+  console.log(` • Mode: ${sendToAll ? 'SEND TO ALL (All registered guests)' : 'NEW ONLY (Unsent registrations)'}`);
+  console.log(` • Target Count: ${pending.length} recipient(s)`);
+  console.log(` • Delay Range: ${Math.round(MIN_DELAY_MS / 1000)}s - ${Math.round(MAX_DELAY_MS / 1000)}s per message`);
+  console.log('──────────────────────────────────────────────────────────');
+  console.log(' 📝 SAMPLE MESSAGE FOR FIRST RECIPIENT:');
+  console.log(`   To: ${pending[0].visitor_name} (${pending[0].phone})`);
+  console.log('   Caption Preview:');
+  const sampleCaption = MESSAGE_TEMPLATE(pending[0].visitor_name, pending[0].code, pending[0].company_name);
+  console.log(sampleCaption.split('\n').map((l) => '     | ' + l).join('\n'));
+  console.log('══════════════════════════════════════════════════════════\n');
+
+  const confirmed = await askConfirmation('👉 Press [ENTER] or type "y" to START sending, or "n" to cancel: ');
+
+  if (!confirmed) {
+    console.log('\n❌ Broadcast cancelled by user. No messages were sent.');
+    process.exit(0);
+  }
+
+  console.log(`\n🚀 Starting batch send to ${pending.length} attendee(s)…\n`);
 
   for (let i = 0; i < pending.length; i++) {
     const reg = pending[i];

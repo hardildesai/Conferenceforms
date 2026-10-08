@@ -110,6 +110,27 @@ function randomDelay(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const ATTACHMENT_FILE_PATH = process.env.ATTACHMENT_FILE_PATH || undefined;
+
+function getMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.png':
+      return 'image/png';
+    case '.webp':
+      return 'image/webp';
+    case '.gif':
+      return 'image/gif';
+    case '.pdf':
+      return 'application/pdf';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
 // ── Batch Send Logic ──────────────────────────────────────
 async function processBatch(sock: WASocket, excelMgr: ExcelManager): Promise<void> {
   const pending = excelMgr.getPendingRecipients(SEND_TO_ALL);
@@ -123,11 +144,19 @@ async function processBatch(sock: WASocket, excelMgr: ExcelManager): Promise<voi
   const sampleRecipient = pending[0];
   const sampleMessage = compileMessage(template, sampleRecipient.data);
 
+  let attachmentInfo = 'None (Text Only)';
+  if (ATTACHMENT_FILE_PATH && fs.existsSync(path.resolve(ATTACHMENT_FILE_PATH))) {
+    attachmentInfo = `Custom File (${path.basename(ATTACHMENT_FILE_PATH)}) + Text Caption`;
+  } else if (GENERATE_QR_CODE) {
+    attachmentInfo = 'Dynamic QR Code Image + Text Caption';
+  }
+
   console.log('\n══════════════════════════════════════════════════════════');
   console.log(` 📢 EXCEL WHATSAPP BATCH PREVIEW`);
   console.log(` • Excel File: ${EXCEL_FILE_PATH}`);
   console.log(` • Detected Phone Column: "${excelMgr.phoneColumnHeader}"`);
   console.log(` • Mode: ${SEND_TO_ALL ? 'SEND ALL ROWS' : 'PENDING ROWS ONLY'}`);
+  console.log(` • Attachment Mode: ${attachmentInfo}`);
   console.log(` • Recipients to send: ${pending.length}`);
   console.log(` • Safety Delay: ${Math.round(MIN_DELAY_MS / 1000)}s - ${Math.round(MAX_DELAY_MS / 1000)}s`);
   console.log('──────────────────────────────────────────────────────────');
@@ -152,10 +181,36 @@ async function processBatch(sock: WASocket, excelMgr: ExcelManager): Promise<voi
     console.log(`${itemIndex} Sending to ${item.phone} (Row ${item.rowIndex + 2})…`);
 
     try {
-      // Check if code field exists for QR code generation
+      const rowAttachment = item.data['Attachment'] || item.data['attachment'] || item.data['Image_Path'] || item.data['image_path'];
+      const globalAttachment = ATTACHMENT_FILE_PATH && fs.existsSync(path.resolve(ATTACHMENT_FILE_PATH))
+        ? path.resolve(ATTACHMENT_FILE_PATH)
+        : null;
+
+      const fileToAttach = rowAttachment
+        ? path.resolve(String(rowAttachment))
+        : globalAttachment;
+
       const codeVal = item.data['Code'] || item.data['code'] || item.data['attendance_code'];
 
-      if (GENERATE_QR_CODE && codeVal) {
+      if (fileToAttach && fs.existsSync(fileToAttach)) {
+        const mimeType = getMimeType(fileToAttach);
+        const buffer = fs.readFileSync(fileToAttach);
+
+        if (mimeType.startsWith('image/')) {
+          await sock.sendMessage(item.formattedJid, {
+            image: buffer,
+            caption: messageContent,
+            mimetype: mimeType,
+          });
+        } else {
+          await sock.sendMessage(item.formattedJid, {
+            document: buffer,
+            caption: messageContent,
+            mimetype: mimeType,
+            fileName: path.basename(fileToAttach),
+          });
+        }
+      } else if (GENERATE_QR_CODE && codeVal) {
         const qrBuffer = await generateQRBuffer(String(codeVal));
         await sock.sendMessage(item.formattedJid, {
           image: qrBuffer,
@@ -170,7 +225,7 @@ async function processBatch(sock: WASocket, excelMgr: ExcelManager): Promise<voi
 
       // Mark row as SENT in Excel sheet
       excelMgr.updateRowStatus(item.rowIndex, 'SENT');
-      console.log(`  ✅ Message sent and row marked SENT in Excel.`);
+      console.log(`  ✅ Message sent with attachment/caption and row marked SENT in Excel.`);
 
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);

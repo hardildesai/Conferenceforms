@@ -1,0 +1,15 @@
+Dear {Name},
+
+You are cordially invited to our upcoming event! 🎉
+
+📅 Date: Thursday, 24 September 2026
+📍 Venue: Megma Restaurant and Banquets, Odhav, Ahmedabad
+🗺️ Location: https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6
+
+Your attendance code is: *{Code}*
+
+Please show this message (or the attached QR code) upon arrival for check-in.
+
+We look forward to seeing you!
+
+— Team Legrand

@@ -1,0 +1,29 @@
+{
+  "name": "excel-whatsapp-sender",
+  "version": "1.0.0",
+  "description": "WhatsApp batch sender from Excel spreadsheets using Baileys and XLSX.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "npx ts-node --esm src/index.ts",
+    "create-sample": "npx ts-node --esm src/createSampleExcel.ts",
+    "build": "tsc",
+    "start:built": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.16",
+    "dotenv": "^16.5.0",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/qrcode-terminal": "^0.12.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.0"
+  }
+}

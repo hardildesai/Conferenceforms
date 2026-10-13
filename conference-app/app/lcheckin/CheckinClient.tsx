@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
+import { CitySlug, CITIES } from '@/lib/cities';
 
-type CheckinStatus = 'idle' | 'loading' | 'success' | 'already_attended' | 'not_found' | 'error';
+type CheckinStatus = 'idle' | 'loading' | 'success' | 'already_attended' | 'not_found' | 'wrong_city' | 'error';
 
 interface CheckinResult {
   status: CheckinStatus;
@@ -39,7 +40,7 @@ function LegrandLogo({ height, size }: { height?: number; size?: number }) {
   );
 }
 
-export default function CheckinClient() {
+export default function CheckinClient({ city }: { city?: CitySlug }) {
   const [mode, setMode] = useState<'qr' | 'manual'>('qr');
   const [code, setCode] = useState('');
   const [result, setResult] = useState<CheckinResult | null>(null);
@@ -48,12 +49,16 @@ export default function CheckinClient() {
   const [scannerError, setScannerError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const cityConf = city ? CITIES[city] : null;
+  const cityName = cityConf ? cityConf.name : 'All';
+
   async function refreshCounter() {
     try {
-      const res = await fetch('/api/checkin');
+      const url = city ? `/api/checkin?city=${city}` : '/api/checkin';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setCounter(data);
+        setCounter({ attended: data.attended, total: data.total });
       }
     } catch { /* silent */ }
   }
@@ -62,7 +67,7 @@ export default function CheckinClient() {
     refreshCounter();
     const interval = setInterval(refreshCounter, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [city]);
 
   async function executeCheckin(scannedCode: string) {
     if (!scannedCode || scannedCode.length !== 6) return;
@@ -73,7 +78,7 @@ export default function CheckinClient() {
       const res = await fetch('/api/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: scannedCode }),
+        body: JSON.stringify({ code: scannedCode, city }),
       });
 
       const data = await res.json();
@@ -81,7 +86,7 @@ export default function CheckinClient() {
       if (res.status === 404) {
         setResult({ status: 'not_found', error: data.error });
       } else if (!res.ok) {
-        setResult({ status: 'error', error: data.error ?? 'Something went wrong' });
+        setResult({ status: (data.status as CheckinStatus) || 'error', error: data.error ?? 'Something went wrong' });
       } else {
         setResult({ status: data.status, ...data });
         if (data.status === 'success') await refreshCounter();
@@ -101,368 +106,328 @@ export default function CheckinClient() {
       return;
     }
 
-    let scannerInstance: import('html5-qrcode').Html5Qrcode | null = null;
-    let isStopped = false;
+    let html5QrCode: any = null;
+    let isMounted = true;
 
     async function startScanner() {
       try {
         const { Html5Qrcode } = await import('html5-qrcode');
-        if (isStopped) return;
+        if (!isMounted) return;
 
-        scannerInstance = new Html5Qrcode('qr-reader');
-        setScannerError(null);
+        html5QrCode = new Html5Qrcode('qr-reader-container');
 
-        await scannerInstance.start(
+        await html5QrCode.start(
           { facingMode: 'environment' },
           {
             fps: 10,
-            qrbox: { width: 220, height: 220 },
+            qrbox: { width: 250, height: 250 },
           },
-          (decodedText) => {
-            // Extract 6-digit code from decoded text or URL
-            const match = decodedText.match(/\b\d{6}\b/);
-            const codeFound = match ? match[0] : decodedText.replace(/\D/g, '').slice(0, 6);
-
-            if (codeFound && codeFound.length === 6) {
-              // Immediately stop camera scan before processing checkin
-              if (scannerInstance && scannerInstance.isScanning) {
-                scannerInstance.stop().catch(() => {});
+          (decodedText: string) => {
+            const digits = decodedText.trim().replace(/\D/g, '');
+            const candidate = digits.length >= 6 ? digits.slice(-6) : decodedText.trim();
+            if (/^\d{6}$/.test(candidate)) {
+              if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(() => {}).then(() => {
+                  if (isMounted) executeCheckin(candidate);
+                });
+              } else {
+                executeCheckin(candidate);
               }
-              executeCheckin(codeFound);
             }
           },
-          () => {
-            // ignore scan frame errors
-          }
+          () => {} // silent scan frame error
         );
-        setIsScannerActive(true);
-      } catch (err: unknown) {
-        console.error('Camera scanner error:', err);
-        setIsScannerActive(false);
-        setScannerError('Camera access denied or unavailable. Please enable camera permissions or use Manual Entry.');
+
+        if (isMounted) {
+          setIsScannerActive(true);
+          setScannerError(null);
+        }
+      } catch (err: any) {
+        console.error('QR Scanner Start Error:', err);
+        if (isMounted) {
+          setScannerError('Could not access camera. Please allow camera permissions or use Manual Entry.');
+          setIsScannerActive(false);
+        }
       }
     }
 
-    startScanner();
+    const timer = setTimeout(startScanner, 100);
 
     return () => {
-      isStopped = true;
-      setIsScannerActive(false);
-      if (scannerInstance && scannerInstance.isScanning) {
-        scannerInstance.stop().catch(() => {});
+      isMounted = false;
+      clearTimeout(timer);
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(() => {}).then(() => {
+          try { html5QrCode.clear(); } catch {}
+        });
       }
     };
   }, [mode, result]);
 
-  async function handleSubmit(e: FormEvent) {
+  function handleManualSubmit(e: FormEvent) {
     e.preventDefault();
-    await executeCheckin(code);
+    executeCheckin(code);
   }
-
-  function handleReset() {
-    setResult(null);
-    setCode('');
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }
-
-  const progressPct = counter.total > 0
-    ? Math.round((counter.attended / counter.total) * 100)
-    : 0;
 
   return (
     <main className="page-shell">
-      {/* Legrand topbar */}
-      <div className="legrand-topbar animate-fade-up">
-        <div className="legrand-logo-wrap">
-          <LegrandLogo size={22} />
-          <span className="legrand-logo-text">
-            legrand<span className="legrand-logo-reg">®</span>
+      {/* Topbar */}
+      <header className="switchgear-topbar animate-fade-up">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <LegrandLogo height={32} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{
+            fontSize: '0.78rem',
+            fontWeight: 800,
+            background: 'var(--legrand-red)',
+            color: '#ffffff',
+            padding: '4px 12px',
+            borderRadius: '100px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          }}>
+            {cityName} Scanner Desk
           </span>
         </div>
-      </div>
+      </header>
 
-      <div className="gold-divider" style={{ width: '100%', maxWidth: '560px' }} />
-
-      {/* Page title */}
-      <div className="animate-fade-up" style={{ textAlign: 'center', marginBottom: '20px', animationDelay: '0.05s' }}>
-        <p style={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
-          Event Day
-        </p>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.4rem, 4vw, 1.9rem)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-          Guest Check-In
+      {/* Header and live counter */}
+      <div className="animate-fade-up" style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111111', margin: '0 0 4px', textTransform: 'uppercase' }}>
+          SWITCHGEAR 360° Check-In Desk
         </h1>
-        <div className="gold-divider-thick" style={{ marginTop: '12px' }} />
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 16px' }}>
+          {cityConf ? `${cityConf.venueName} · ${cityConf.date}` : 'Digital Venue Verification'}
+        </p>
+
+        {/* Live Attendance Counter */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '24px',
+          background: '#ffffff',
+          border: '1.5px solid var(--border-light)',
+          borderRadius: '14px',
+          padding: '12px 28px',
+          boxShadow: 'var(--shadow-sm)',
+        }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--success)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.08em' }}>
+              Checked In
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--success)' }}>
+              {counter.attended}
+            </div>
+          </div>
+          <div style={{ width: '1px', height: '36px', background: 'var(--border-light)' }} />
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.08em' }}>
+              Total {cityName}
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#111111' }}>
+              {counter.total}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Live counter */}
-      <div className="live-counter animate-fade-up" style={{ width: '100%', maxWidth: '480px', animationDelay: '0.1s' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
-          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>
-            Attendance
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px' }}>
-          <span className="counter-value">{counter.attended}</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>/ {counter.total}</span>
-          <span style={{ color: 'var(--gold)', fontSize: '0.875rem', fontWeight: 600 }}>({progressPct}%)</span>
-        </div>
-        {/* Progress bar */}
-        <div style={{ marginTop: '10px', height: '4px', background: 'rgba(200,151,58,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%',
-            width: `${progressPct}%`,
-            background: 'linear-gradient(90deg, var(--legrand-red), var(--gold))',
-            borderRadius: '2px',
-            transition: 'width 0.6s ease',
-          }} />
-        </div>
-      </div>
-
-      {/* Mode Switcher Tabs — shown when not viewing a result */}
-      {!result && (
-        <div className="animate-fade-up" style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '480px', marginBottom: '12px', animationDelay: '0.12s' }}>
-          <button
-            type="button"
-            onClick={() => { setMode('qr'); setResult(null); }}
-            style={{
-              flex: 1,
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              border: mode === 'qr' ? '2px solid var(--legrand-red)' : '1px solid var(--border)',
-              background: mode === 'qr' ? 'rgba(226,0,15,0.12)' : 'rgba(255,255,255,0.03)',
-              color: mode === 'qr' ? 'var(--legrand-red)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
-          >
-            📷 Scan QR Code
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('manual'); setResult(null); }}
-            style={{
-              flex: 1,
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              border: mode === 'manual' ? '2px solid var(--gold)' : '1px solid var(--border)',
-              background: mode === 'manual' ? 'rgba(200,151,58,0.12)' : 'rgba(255,255,255,0.03)',
-              color: mode === 'manual' ? 'var(--gold)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
-          >
-            ⌨️ 6-Digit Code
-          </button>
-        </div>
-      )}
-
-      {/* Main scanning / input card — shown when no result card is active */}
-      {!result && (
-        <div className="card-cream animate-fade-up" style={{ animationDelay: '0.15s' }}>
-
-          {/* 📷 QR SCANNER MODE */}
-          {mode === 'qr' && (
+      {/* ── Result Popover / Overlay Card ── */}
+      {result && (
+        <div className="card-cream animate-fade-up" style={{
+          marginBottom: '16px',
+          border: result.status === 'success' ? '2px solid var(--success)' : result.status === 'already_attended' ? '2px solid var(--gold)' : '2px solid var(--danger)',
+          textAlign: 'center',
+          padding: '24px 20px',
+        }}>
+          {result.status === 'loading' && (
             <div>
-              <p style={{
-                textAlign: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: 'var(--cream-muted)',
-                marginBottom: '14px',
-              }}>
-                Point Camera at Attendee QR Code
-              </p>
-
-              <div style={{ position: 'relative', width: '100%', background: '#000000', borderRadius: '12px', overflow: 'hidden', minHeight: '260px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div id="qr-reader" style={{ width: '100%' }} />
-                
-                {!isScannerActive && !scannerError && (
-                  <div style={{ position: 'absolute', color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', textAlign: 'center', padding: '20px' }}>
-                    Starting Camera Scanner…
-                  </div>
-                )}
-
-                {scannerError && (
-                  <div style={{ position: 'absolute', padding: '20px', textAlign: 'center', color: '#ff6b6b', fontSize: '0.875rem' }}>
-                    ⚠️ {scannerError}
-                  </div>
-                )}
-              </div>
+              <span className="spinner" style={{ width: '28px', height: '28px', borderWidth: '3px' }} />
+              <p style={{ marginTop: '10px', color: 'var(--cream-text)', fontWeight: 600 }}>Verifying attendance code…</p>
             </div>
           )}
 
-          {/* ⌨️ MANUAL 6-DIGIT ENTRY MODE */}
-          {mode === 'manual' && (
-            <form onSubmit={handleSubmit}>
-              <p style={{
-                textAlign: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-                color: 'var(--cream-muted)',
-                marginBottom: '14px',
-              }}>
-                Enter 6-Digit Attendance Code
+          {result.status === 'success' && (
+            <div>
+              <div style={{ display: 'inline-block', padding: '4px 14px', background: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                Verified Entry
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--success)', fontSize: '1.5rem', margin: '0 0 6px' }}>
+                Welcome to Legrand!
+              </h2>
+              <p style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--cream-text)', margin: '0 0 4px' }}>
+                {result.visitor_name}
               </p>
+              <p style={{ fontSize: '0.9rem', color: 'var(--cream-muted)', margin: '0 0 16px' }}>
+                {result.company_name} {result.designation ? `· ${result.designation}` : ''}
+              </p>
+              <button
+                type="button"
+                className="btn btn-legrand"
+                onClick={() => setResult(null)}
+                style={{ width: '100%' }}
+              >
+                Scan Next Attendee →
+              </button>
+            </div>
+          )}
 
-              <input
-                id="checkin-code-input"
-                ref={inputRef}
-                type="text"
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                value={code}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setCode(val);
+          {result.status === 'already_attended' && (
+            <div>
+              <div style={{ display: 'inline-block', padding: '4px 14px', background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                Duplicate Check-In
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-display)', color: '#d97706', fontSize: '1.3rem', margin: '0 0 6px' }}>
+                Already Checked In!
+              </h2>
+              <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--cream-text)', margin: '0 0 4px' }}>
+                {result.visitor_name}
+              </p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--cream-muted)', margin: '0 0 14px' }}>
+                Checked in at: {result.attended_at ? formatTime(result.attended_at) : 'earlier today'}
+              </p>
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={() => setResult(null)}
+                style={{ width: '100%' }}
+              >
+                Done / Next Attendee →
+              </button>
+            </div>
+          )}
+
+          {result.status === 'wrong_city' && (
+            <div>
+              <div style={{ display: 'inline-block', padding: '4px 14px', background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                City Discrepancy
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--danger)', fontSize: '1.3rem', margin: '0 0 6px' }}>
+                Wrong Event / City
+              </h2>
+              <p style={{ fontSize: '0.95rem', color: 'var(--danger)', margin: '0 0 16px', fontWeight: 600 }}>
+                {result.error}
+              </p>
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={() => setResult(null)}
+                style={{ width: '100%' }}
+              >
+                Dismiss / Try Again
+              </button>
+            </div>
+          )}
+
+          {(result.status === 'not_found' || result.status === 'error') && (
+            <div>
+              <div style={{ display: 'inline-block', padding: '4px 14px', background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                Code Not Recognized
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--danger)', fontSize: '1.3rem', margin: '0 0 6px' }}>
+                Invalid Code
+              </h2>
+              <p style={{ fontSize: '0.9rem', color: 'var(--cream-muted)', margin: '0 0 16px' }}>
+                {result.error || 'Code not found. Please double check the 6 digits.'}
+              </p>
+              <button
+                type="button"
+                className="btn btn-dark"
+                onClick={() => setResult(null)}
+                style={{ width: '100%' }}
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Mode Switcher & Scanner Card ── */}
+      {!result && (
+        <div className="card-cream animate-fade-up" style={{ width: '100%', maxWidth: '440px', padding: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${mode === 'qr' ? 'btn-legrand' : 'btn-dark'}`}
+              style={{ flex: 1 }}
+              onClick={() => { setMode('qr'); setScannerError(null); }}
+            >
+              QR Scanner
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${mode === 'manual' ? 'btn-legrand' : 'btn-dark'}`}
+              style={{ flex: 1 }}
+              onClick={() => { setMode('manual'); setTimeout(() => inputRef.current?.focus(), 100); }}
+            >
+              Manual 6-Digit Code
+            </button>
+          </div>
+
+          {mode === 'qr' && (
+            <div>
+              <div
+                id="qr-reader-container"
+                style={{
+                  width: '100%',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: '#000000',
+                  minHeight: '260px',
                 }}
-                placeholder="_ _ _ _ _ _"
-                className="input-cream checkin-input"
-                autoComplete="off"
-                autoFocus
-                style={{ marginBottom: '16px' }}
               />
 
+              {scannerError && (
+                <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(226,0,15,0.08)', borderRadius: '6px' }}>
+                  <p style={{ color: 'var(--legrand-red)', fontSize: '0.8rem', margin: 0 }}>{scannerError}</p>
+                </div>
+              )}
+
+              <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--cream-muted)', marginTop: '12px', margin: '12px 0 0' }}>
+                Point attendee&apos;s phone QR pass into the camera box
+              </p>
+            </div>
+          )}
+
+          {mode === 'manual' && (
+            <form onSubmit={handleManualSubmit}>
+              <div className="form-group">
+                <label htmlFor="manual-code" style={{ textAlign: 'center', display: 'block', fontSize: '0.85rem' }}>
+                  Attendee 6-Digit Attendance Code
+                </label>
+                <input
+                  id="manual-code"
+                  ref={inputRef}
+                  type="text"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="123456"
+                  className="input-cream"
+                  style={{
+                    textAlign: 'center',
+                    fontSize: '1.8rem',
+                    letterSpacing: '0.3em',
+                    fontWeight: 700,
+                    fontFamily: 'monospace',
+                  }}
+                  autoFocus
+                />
+              </div>
+
               <button
-                id="checkin-submit-btn"
                 type="submit"
                 className="btn btn-legrand"
                 disabled={code.length !== 6}
+                style={{ width: '100%', marginTop: '8px' }}
               >
-                Check In Guest →
+                Verify &amp; Check In →
               </button>
             </form>
           )}
         </div>
       )}
-
-      {/* Result card */}
-      {result && result.status !== 'loading' && result.status !== 'idle' && (
-        <div className="card-cream animate-fade-up" style={{ animationDelay: '0s' }}>
-
-          {/* ── Success ── */}
-          {result.status === 'success' && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '64px', height: '64px',
-                borderRadius: '50%',
-                background: 'var(--success-dim)',
-                border: '2px solid rgba(34,197,94,0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-                fontSize: '1.75rem',
-              }}>✅</div>
-              <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--success)', fontSize: '1.3rem', fontWeight: 700, marginBottom: '8px' }}>
-                Checked In!
-              </h2>
-              <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--cream-text)', marginBottom: '2px' }}>
-                {result.visitor_name}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: 'var(--cream-muted)' }}>
-                {result.company_name}
-                {result.designation ? ` · ${result.designation}` : ''}
-              </p>
-              <div style={{
-                marginTop: '12px',
-                padding: '8px 16px',
-                background: 'var(--success-dim)',
-                border: '1px solid rgba(34,197,94,0.2)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8125rem',
-                color: 'var(--success)',
-                fontWeight: 600,
-              }}>
-                Welcome to the Legrand Experience Evening 🎉
-              </div>
-            </div>
-          )}
-
-          {/* ── Already attended ── */}
-          {result.status === 'already_attended' && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '64px', height: '64px',
-                borderRadius: '50%',
-                background: 'var(--warning-dim)',
-                border: '2px solid rgba(245,158,11,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px', fontSize: '1.75rem',
-              }}>⚠️</div>
-              <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--warning)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>
-                Already Checked In
-              </h2>
-              <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cream-text)', marginBottom: '2px' }}>
-                {result.visitor_name}
-              </p>
-              <p style={{ fontSize: '0.875rem', color: 'var(--cream-muted)', marginBottom: '8px' }}>
-                {result.company_name}
-              </p>
-              {result.attended_at && (
-                <p style={{ fontSize: '0.8125rem', color: 'rgba(245,158,11,0.8)', fontWeight: 500 }}>
-                  Checked in at {formatTime(result.attended_at)}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ── Not found ── */}
-          {result.status === 'not_found' && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '64px', height: '64px',
-                borderRadius: '50%',
-                background: 'rgba(226,0,15,0.08)',
-                border: '2px solid rgba(226,0,15,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px', fontSize: '1.75rem',
-              }}>❌</div>
-              <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--legrand-red)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>
-                Code Not Found
-              </h2>
-              <p style={{ fontSize: '0.875rem', color: 'var(--cream-muted)' }}>
-                {result.error ?? 'This code is not registered. Please verify and try again.'}
-              </p>
-            </div>
-          )}
-
-          {/* ── Error ── */}
-          {result.status === 'error' && (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ color: 'var(--legrand-red)', fontWeight: 500 }}>⚠️ {result.error}</p>
-            </div>
-          )}
-
-          <div className="divider" />
-          <button id="checkin-reset-btn" className="btn btn-legrand" onClick={handleReset}>
-            ← Next Guest
-          </button>
-        </div>
-      )}
-
-      {/* Footer link */}
-      <div className="animate-fade-up" style={{ marginTop: '28px', animationDelay: '0.25s', paddingBottom: '8px' }}>
-        <a href="/hotstart" style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', textDecoration: 'none' }}>
-          Admin Dashboard →
-        </a>
-      </div>
     </main>
   );
 }

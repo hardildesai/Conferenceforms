@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       companyName: reg.company_name,
       designation: reg.designation,
       code: reg.code,
+      city: reg.city,
       qrCodeBuffer: qrBuffer,
       customSubject: body.customSubject,
       customBody: body.customMessage,

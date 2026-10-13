@@ -4,16 +4,16 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { getCityConfig } from '@/lib/cities';
 
-function LegrandLogo({ height, size }: { height?: number; size?: number }) {
-  const logoHeight = height ?? size ?? 26;
+function LegrandLogo({ height = 28 }: { height?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/legrand-logo.png"
       alt="Legrand Logo"
-      height={logoHeight}
-      style={{ display: 'block', height: `${logoHeight}px`, width: 'auto', background: '#ffffff', padding: '2px 8px', borderRadius: '4px' }}
+      height={height}
+      style={{ display: 'block', height: `${height}px`, width: 'auto' }}
     />
   );
 }
@@ -22,16 +22,20 @@ function ConfirmationContent() {
   const searchParams = useSearchParams();
   const code = searchParams.get('code') ?? '------';
   const name = searchParams.get('name') ?? 'Attendee';
+  const cityParam = searchParams.get('city') ?? 'ahmedabad';
+
+  const cityConfig = getCityConfig(cityParam) || getCityConfig('ahmedabad')!;
 
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (code && code !== '------') {
       QRCode.toDataURL(code, {
-        width: 220,
+        width: 240,
         margin: 2,
         color: {
-          dark: '#1a1a1a',
+          dark: '#0f0d0a',
           light: '#ffffff',
         },
       })
@@ -40,207 +44,204 @@ function ConfirmationContent() {
     }
   }, [code]);
 
+  function handleCopy() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
     <main className="page-shell">
-      {/* Legrand topbar */}
-      <div className="legrand-topbar animate-fade-up">
-        <div className="legrand-logo-wrap">
-          <LegrandLogo size={22} />
-          <span className="legrand-logo-text">
-            legrand<span className="legrand-logo-reg">®</span>
+      {/* ── Executive Topbar ── */}
+      <header className="executive-topbar animate-fade-up">
+        <div className="topbar-brand">
+          <LegrandLogo height={30} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span className="topbar-tagline">
+            BETTER SPACES FOR A BRIGHTER TOMORROW
           </span>
+          <Link
+            href={`/${cityConfig.slug}`}
+            className="btn-gold btn-sm"
+          >
+            ← Event Details
+          </Link>
         </div>
-      </div>
+      </header>
 
-      <div className="gold-divider" style={{ width: '100%', maxWidth: '560px' }} />
-
-      {/* Success badge */}
-      <div className="animate-fade-up" style={{ textAlign: 'center', marginBottom: '20px', animationDelay: '0.1s' }}>
+      {/* ── Success Header ── */}
+      <section className="animate-fade-up" style={{ textAlign: 'center', maxWidth: '680px', margin: '14px auto 20px' }}>
         <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'var(--success-dim)',
-          border: '1px solid rgba(34,197,94,0.3)',
+          display: 'inline-block',
+          background: 'rgba(34, 197, 94, 0.12)',
+          border: '1px solid rgba(34, 197, 94, 0.35)',
           borderRadius: '100px',
-          padding: '6px 16px',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          color: 'var(--success)',
-          marginBottom: '14px',
-        }}>
-          <span>✓</span> Registration Confirmed
-        </div>
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(1.5rem, 5vw, 2.2rem)',
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          lineHeight: 1.2,
-        }}>
-          Welcome, <span className="gold-shimmer">{name}</span>
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '0.9375rem' }}>
-          Your place at the <strong style={{ color: 'var(--text-primary)' }}>Legrand Experience Evening</strong> is confirmed.
-        </p>
-      </div>
-
-      {/* Code card — cream style */}
-      <div className="card-cream animate-fade-up" style={{ animationDelay: '0.2s' }}>
-        <p style={{
-          textAlign: 'center',
+          padding: '5px 16px',
           fontSize: '0.75rem',
-          fontWeight: 600,
+          fontWeight: 800,
+          color: '#22c55e',
+          marginBottom: '12px',
           textTransform: 'uppercase',
-          letterSpacing: '0.14em',
-          color: 'var(--cream-muted)',
-          marginBottom: '16px',
+          letterSpacing: '0.12em',
         }}>
-          Your Entry Pass &amp; Code
+          REGISTRATION CONFIRMED · {cityConfig.name.toUpperCase()}
+        </div>
+
+        <h1 className="executive-title" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.6rem)' }}>
+          Welcome, <span className="red">{name}</span>
+        </h1>
+
+        <p className="executive-desc" style={{ marginBottom: '10px' }}>
+          Your digital access pass for <strong>SWITCHGEAR 360° ({cityConfig.name})</strong> has been successfully issued.
         </p>
+      </section>
+
+      {/* ── Entry Pass Card (Cream Luxury) ── */}
+      <div className="card-cream animate-fade-up" style={{ maxWidth: '580px', padding: '36px 28px' }}>
+        <div style={{
+          textAlign: 'center',
+          fontSize: '0.72rem',
+          fontWeight: 800,
+          textTransform: 'uppercase',
+          letterSpacing: '0.16em',
+          color: 'var(--cream-muted)',
+          marginBottom: '18px',
+        }}>
+          OFFICIAL DIGITAL ENTRY PASS &amp; VERIFICATION
+        </div>
 
         {/* QR Code Container */}
         {qrDataUrl && (
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            marginBottom: '16px',
+            marginBottom: '18px',
           }}>
             <div style={{
               background: '#ffffff',
               padding: '12px',
-              borderRadius: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              border: '2px solid var(--border-gold)',
+              borderRadius: '10px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+              border: '1.5px solid var(--cream-border)',
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrDataUrl}
-                alt={`QR Code for ${code}`}
-                width={180}
-                height={180}
+                alt={`QR Pass for ${code}`}
+                width={190}
+                height={190}
                 style={{ display: 'block', borderRadius: '4px' }}
               />
             </div>
           </div>
         )}
 
-        <div className="code-display" id="attendance-code-display">
-          <div className="code-digits">{code}</div>
-          <div className="gold-divider-thick" style={{ margin: '14px auto 10px' }} />
-          <p style={{ color: 'var(--cream-muted)', fontSize: '0.8125rem', margin: 0 }}>
-            Present this QR code or 6-digit code at the entrance
+        {/* Code Display */}
+        <div className="code-display">
+          <div className="code-digits">
+            {code}
+          </div>
+          <p style={{ color: 'var(--cream-muted)', fontSize: '0.78rem', fontWeight: 600, margin: '6px 0 0' }}>
+            Present this 6-digit confirmation code or QR badge at the registration reception
           </p>
         </div>
 
-        {/* Event detail recap */}
+        {/* Event Recap */}
         <div style={{
-          marginTop: '20px',
+          background: 'rgba(255, 255, 255, 0.75)',
+          border: '1px solid var(--cream-border)',
+          borderRadius: '8px',
           padding: '16px',
-          background: 'rgba(226,0,15,0.04)',
-          border: '1px solid rgba(226,0,15,0.15)',
-          borderRadius: 'var(--radius-md)',
+          marginBottom: '20px',
         }}>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--cream-muted)', margin: '0 0 8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Event Details
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
-              <span style={{ flexShrink: 0 }}>📅</span>
-              <span>Thursday, 24 September 2026</span>
+          <div style={{
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            color: 'var(--legrand-red)',
+            letterSpacing: '0.1em',
+            marginBottom: '10px',
+          }}>
+            EVENT PARTICULARS · {cityConfig.name.toUpperCase()}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: 'var(--cream-text)' }}>
+            <div>
+              <strong style={{ textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.06em', color: 'var(--cream-muted)' }}>Date:</strong>{' '}
+              <span style={{ fontWeight: 700 }}>{cityConfig.date}</span>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
-              <span style={{ flexShrink: 0 }}>🕡</span>
-              <span>6:30 PM Onwards</span>
+            <div>
+              <strong style={{ textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.06em', color: 'var(--cream-muted)' }}>Schedule:</strong>{' '}
+              <span style={{ fontWeight: 700 }}>{cityConfig.time}</span>
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--cream-text)' }}>
-              <span style={{ flexShrink: 0 }}>📍</span>
-              <div>
-                <span>Megma Restaurant and Banquets, Odhav, Ahmedabad</span>
-                <div style={{ marginTop: '4px' }}>
-                  <a
-                    href="https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      color: 'var(--legrand-red)',
-                      fontWeight: 600,
-                      fontSize: '0.8125rem',
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    🗺️ Open in Google Maps ↗
-                  </a>
-                </div>
+            <div>
+              <strong style={{ textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.06em', color: 'var(--cream-muted)' }}>Venue:</strong>{' '}
+              <span style={{ fontWeight: 700 }}>{cityConfig.venueName}</span>
+              <div style={{ fontSize: '0.8rem', color: 'var(--cream-muted)', marginTop: '2px' }}>
+                {cityConfig.venueAddress}
               </div>
             </div>
+            <div style={{ marginTop: '6px' }}>
+              <a
+                href={cityConfig.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--legrand-red)',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  textDecoration: 'underline',
+                }}
+              >
+                Open Venue Location in Google Maps ↗
+              </a>
+            </div>
           </div>
         </div>
 
-        <div className="divider" />
+        {/* On Event Day instructions */}
+        <div style={{ fontSize: '0.825rem', color: 'var(--cream-text)', lineHeight: 1.6, marginBottom: '22px' }}>
+          <strong style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.75rem', color: 'var(--cream-muted)' }}>
+            Important Check-In Instructions:
+          </strong>
+          <ul style={{ paddingLeft: '18px', marginTop: '6px', color: 'var(--cream-muted)' }}>
+            <li>Save this screen or present your confirmation email upon arrival.</li>
+            <li>Paper printouts are not required; rapid digital check-in is active.</li>
+          </ul>
+        </div>
 
-        {/* On event day */}
-        <p style={{ fontWeight: 600, color: 'var(--cream-text)', marginBottom: '10px', fontSize: '0.9rem' }}>
-          On event day:
-        </p>
-        <ul style={{ paddingLeft: '18px', color: 'var(--cream-muted)', fontSize: '0.875rem', lineHeight: '1.9' }}>
-          <li>Screenshot this page or keep your confirmation email handy</li>
-          <li>Show your 6-digit code or QR to staff at the entrance</li>
-          <li>No printed tickets needed — digital check-in only</li>
-        </ul>
-
-        <div className="divider" />
-
+        {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <Link href="/" className="btn btn-gold" style={{ flex: 1 }}>
-            ← Register Another
-          </Link>
           <button
-            id="copy-code-btn"
-            className="btn btn-dark"
+            type="button"
+            className="btn-legrand"
             style={{ flex: 1 }}
-            onClick={() => {
-              navigator.clipboard.writeText(code).then(() => {
-                const btn = document.getElementById('copy-code-btn');
-                if (btn) {
-                  btn.textContent = '✓ Copied!';
-                  setTimeout(() => { btn.textContent = 'Copy Code'; }, 2000);
-                }
-              });
-            }}
+            onClick={handleCopy}
           >
-            Copy Code
+            {copied ? 'Code Copied to Clipboard' : 'Copy 6-Digit Code'}
           </button>
+          <Link
+            href={`/${cityConfig.slug}`}
+            className="btn-gold"
+            style={{ flex: 1, textAlign: 'center' }}
+          >
+            Register Another Guest →
+          </Link>
+        </div>
+
+        {/* Calligraphy Script */}
+        <div className="presence-script">
+          We look forward to your presence.
         </div>
       </div>
 
-      {/* Footer */}
-      <p className="animate-fade-up" style={{
-        marginTop: '24px',
-        fontSize: '0.775rem',
-        color: 'var(--text-muted)',
-        textAlign: 'center',
-        animationDelay: '0.35s',
-      }}>
-        Didn&apos;t receive the email? Check spam, or contact Mayur Patel / Harshal Buch / Hemant Kelaskar.
-      </p>
-
-      <div className="animate-fade-up" style={{ marginTop: '20px', animationDelay: '0.4s', paddingBottom: '8px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <div className="legrand-logo-wrap" style={{ padding: '7px 16px', boxShadow: 'none', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)' }}>
-            <LegrandLogo size={16} />
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '1rem', fontWeight: 700, color: 'var(--legrand-red)', letterSpacing: '-0.01em' }}>
-              legrand<span style={{ fontSize: '0.6em', verticalAlign: 'super' }}>®</span>
-            </span>
-          </div>
-          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Life is On
-          </p>
+      {/* Skyline footer */}
+      <footer className="executive-footer" style={{ maxWidth: '680px' }}>
+        <div className="footer-skyline-text">
+          {cityConfig.name.toUpperCase()} &nbsp;|&nbsp; IDEAS &nbsp;|&nbsp; CONNECTIONS &nbsp;|&nbsp; A BRIGHTER TOMORROW
         </div>
-      </div>
+      </footer>
     </main>
   );
 }
@@ -249,7 +250,7 @@ export default function ConfirmationPage() {
   return (
     <Suspense fallback={
       <div className="page-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: 'var(--text-muted)' }}>Loading…</span>
+        <span style={{ color: 'var(--text-muted)' }}>Loading invitation pass…</span>
       </div>
     }>
       <ConfirmationContent />

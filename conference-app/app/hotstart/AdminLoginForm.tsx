@@ -85,8 +85,8 @@ export default function AdminLoginForm({ redirectTo }: { redirectTo: string }) {
               padding: '10px 14px',
               marginBottom: '16px',
             }}>
-              <p style={{ color: 'var(--legrand-red)', margin: 0, fontSize: '0.875rem', fontWeight: 500 }}>
-                ⚠️ {error}
+              <p style={{ color: 'var(--legrand-red)', margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>
+                {error}
               </p>
             </div>
           )}

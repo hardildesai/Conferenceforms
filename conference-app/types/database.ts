@@ -10,6 +10,7 @@ export interface Registration {
   email: string;
   phone: string;
   code: string;
+  city: string;
   email_sent: boolean;
   whatsapp_sent: boolean;
   attended: boolean;

@@ -2,12 +2,7 @@
 // Email delivery via Brevo Transactional Email API with inline QR code attachment.
 
 import { BrevoClient } from '@getbrevo/brevo';
-
-const EVENT_NAME = 'Exclusive Legrand Experience Evening';
-const EVENT_DATE = 'Thursday, 24 September 2026';
-const EVENT_VENUE = 'Megma Restaurant and Banquets, Odhav, Ahmedabad';
-const EVENT_TIME = '6:30 PM Onwards';
-const EVENT_MAPS_LINK = 'https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6';
+import { getCityConfig, CitySlug } from './cities';
 
 interface SendConfirmationEmailParams {
   to: string;
@@ -15,6 +10,7 @@ interface SendConfirmationEmailParams {
   companyName: string;
   designation?: string;
   code: string;
+  city?: string;
   qrCodeBuffer: Buffer;
   customSubject?: string;
   customBody?: string;
@@ -27,8 +23,16 @@ export function substitutePlaceholders(
     companyName: string;
     designation?: string;
     code: string;
+    city?: string;
   }
 ): string {
+  const cityConf = data.city ? getCityConfig(data.city) : null;
+  const eventName = cityConf ? cityConf.eventName : 'Exclusive Legrand Experience Evening';
+  const eventDate = cityConf ? cityConf.date : 'October 2026';
+  const eventVenue = cityConf ? `${cityConf.venueName}, ${cityConf.venueAddress}` : 'Gujarat, India';
+  const mapsLink = cityConf ? cityConf.mapsUrl : 'https://maps.google.com';
+  const eventTime = cityConf ? cityConf.time : '6:30 PM Onwards';
+
   return template
     .replace(/\{name\}/gi, data.visitorName)
     .replace(/\{visitor_name\}/gi, data.visitorName)
@@ -36,11 +40,12 @@ export function substitutePlaceholders(
     .replace(/\{company\}/gi, data.companyName)
     .replace(/\{company_name\}/gi, data.companyName)
     .replace(/\{designation\}/gi, data.designation ?? '')
-    .replace(/\{event_name\}/gi, EVENT_NAME)
-    .replace(/\{date\}/gi, EVENT_DATE)
-    .replace(/\{venue\}/gi, EVENT_VENUE)
-    .replace(/\{maps_link\}/gi, EVENT_MAPS_LINK)
-    .replace(/\{time\}/gi, EVENT_TIME);
+    .replace(/\{city\}/gi, cityConf?.name ?? (data.city || ''))
+    .replace(/\{event_name\}/gi, eventName)
+    .replace(/\{date\}/gi, eventDate)
+    .replace(/\{venue\}/gi, eventVenue)
+    .replace(/\{maps_link\}/gi, mapsLink)
+    .replace(/\{time\}/gi, eventTime);
 }
 
 export async function sendConfirmationEmail({
@@ -49,6 +54,7 @@ export async function sendConfirmationEmail({
   companyName,
   designation,
   code,
+  city,
   qrCodeBuffer,
   customSubject,
   customBody,
@@ -67,11 +73,14 @@ export async function sendConfirmationEmail({
 
   const brevo = new BrevoClient({ apiKey });
 
-  const subject = customSubject
-    ? substitutePlaceholders(customSubject, { visitorName, companyName, designation, code })
-    : `Your Entry Pass & Code for ${EVENT_NAME}`;
+  const cityConf = city ? getCityConfig(city) : null;
+  const eventName = cityConf ? `${cityConf.eventName} (${cityConf.name})` : 'Exclusive Legrand Experience Evening';
 
-  const html = buildEmailHtml({ visitorName, companyName, designation, code, customBody });
+  const subject = customSubject
+    ? substitutePlaceholders(customSubject, { visitorName, companyName, designation, code, city })
+    : `Your Entry Pass & Code for Legrand — ${cityConf ? cityConf.name : 'Experience Evening'}`;
+
+  const html = buildEmailHtml({ visitorName, companyName, designation, code, city, customBody });
 
   const attachments = qrCodeBuffer && qrCodeBuffer.length > 0 ? [
     {
@@ -108,25 +117,35 @@ function buildEmailHtml({
   companyName,
   designation,
   code,
+  city,
   customBody,
 }: {
   visitorName: string;
   companyName: string;
   designation?: string;
   code: string;
+  city?: string;
   customBody?: string;
 }): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const logoUrl = `${appUrl}/legrand-logo.png`;
 
+  const cityConf = city ? getCityConfig(city) : null;
+  const eventName = cityConf ? cityConf.eventName : 'Exclusive Legrand Experience Evening';
+  const eventDate = cityConf ? cityConf.date : 'October 2026';
+  const eventTime = cityConf ? cityConf.time : '6:30 PM Onwards';
+  const eventVenue = cityConf ? `${cityConf.venueName}, ${cityConf.venueAddress}` : 'Gujarat, India';
+  const mapsLink = cityConf ? cityConf.mapsUrl : 'https://maps.google.com';
+  const cityName = cityConf ? cityConf.name : '';
+
   let mainBodyText = `
     Hello <strong style="color:#111111;">${visitorName}</strong>,<br/><br/>
-    Your registration from <strong style="color:#111111;">${companyName}</strong> (${designation || 'Guest'}) is confirmed for the <strong>Legrand Experience Evening</strong>.<br/>
+    Your registration from <strong style="color:#111111;">${companyName}</strong> (${designation || 'Guest'}) is confirmed for the <strong>${eventName}${cityName ? ` — ${cityName}` : ''}</strong>.<br/>
     Please show your attendance code or QR code at the entrance for quick digital check-in.
   `;
 
   if (customBody?.trim()) {
-    const substituted = substitutePlaceholders(customBody, { visitorName, companyName, designation, code });
+    const substituted = substitutePlaceholders(customBody, { visitorName, companyName, designation, code, city });
     mainBodyText = substituted.replace(/\n/g, '<br/>');
   }
 
@@ -150,18 +169,18 @@ function buildEmailHtml({
               <div style="background:#ffffff;display:inline-block;padding:8px 24px;border-radius:8px;margin-bottom:12px;">
                 <img src="${logoUrl}" alt="Legrand" height="28" style="display:block;height:28px;width:auto;" />
               </div>
-              <p style="margin:6px 0 0;color:#c8973a;font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:600;">Exclusive Experience Evening</p>
+              <p style="margin:6px 0 0;color:#c8973a;font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:600;">Switchgear 360° · ${cityName.toUpperCase()}</p>
             </td>
           </tr>
 
           <!-- Event Title -->
           <tr>
             <td style="background:linear-gradient(135deg,#e2000f,#b0000b);padding:28px 32px;text-align:center;color:#ffffff;">
-              <h1 style="margin:0;font-size:22px;font-weight:700;line-height:1.3;color:#ffffff;">${EVENT_NAME}</h1>
-              <p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">${EVENT_DATE} &nbsp;·&nbsp; ${EVENT_TIME}</p>
-              <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">${EVENT_VENUE}</p>
+              <h1 style="margin:0;font-size:22px;font-weight:700;line-height:1.3;color:#ffffff;">${eventName}</h1>
+              <p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">${eventDate} &nbsp;·&nbsp; ${eventTime}</p>
+              <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">${eventVenue}</p>
               <div style="margin-top:12px;">
-                <a href="${EVENT_MAPS_LINK}" target="_blank" style="display:inline-block;background:#ffffff;color:#e2000f;text-decoration:none;font-weight:700;font-size:12px;padding:6px 14px;border-radius:20px;">🗺️ View Venue on Google Maps ↗</a>
+                <a href="${mapsLink}" target="_blank" style="display:inline-block;background:#ffffff;color:#e2000f;text-decoration:none;font-weight:700;font-size:12px;padding:6px 14px;border-radius:20px;">🗺️ View Venue on Google Maps ↗</a>
               </div>
             </td>
           </tr>
@@ -190,7 +209,7 @@ function buildEmailHtml({
           <tr>
             <td style="background:#f8f7f4;padding:20px 36px;border-top:1px solid #eee8db;text-align:center;">
               <p style="margin:0;color:#888888;font-size:12px;">
-                Legrand India · Exclusive Event Registration System
+                Legrand India · Switchgear 360° Event Registration System
               </p>
             </td>
           </tr>

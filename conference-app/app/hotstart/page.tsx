@@ -35,7 +35,7 @@ export default async function AdminPage() {
   if (error) {
     return (
       <div className="gate-wrapper">
-        <div className="card" style={{ textAlign: 'center' }}>
+        <div className="card-cream" style={{ textAlign: 'center', maxWidth: '440px' }}>
           <p style={{ color: 'var(--danger)' }}>Failed to load registrations. Check your Supabase connection.</p>
           <pre style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '10px' }}>{error.message}</pre>
         </div>
@@ -43,5 +43,23 @@ export default async function AdminPage() {
     );
   }
 
-  return <AdminDashboard registrations={registrations} />;
+  const allCityCounts: Record<string, number> = {
+    ahmedabad: 0,
+    surat: 0,
+    rajkot: 0,
+  };
+  for (const r of registrations) {
+    const c = (r.city || 'ahmedabad').toLowerCase();
+    if (allCityCounts[c] !== undefined) {
+      allCityCounts[c]++;
+    }
+  }
+
+  return (
+    <AdminDashboard
+      registrations={registrations}
+      allCityCounts={allCityCounts}
+      totalAllCount={registrations.length}
+    />
+  );
 }

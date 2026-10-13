@@ -1,278 +1,184 @@
-'use client';
+import Link from 'next/link';
+import { CITIES, VALID_CITY_SLUGS } from '@/lib/cities';
+import type { Metadata } from 'next';
 
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+export const metadata: Metadata = {
+  title: 'Legrand Switchgear 360° — Select Your City (Ahmedabad · Surat · Rajkot)',
+  description: 'Join Legrand for Switchgear 360°: Safety, Efficiency, Performance across Gujarat. Register for Ahmedabad, Surat, and Rajkot.',
+};
 
-interface FormData {
-  company_name: string;
-  visitor_name: string;
-  designation: string;
-  email: string;
-  phone: string;
-}
-
-interface FieldErrors {
-  company_name?: string;
-  visitor_name?: string;
-  designation?: string;
-  email?: string;
-  phone?: string;
-}
-
-// Official Legrand logo component using uploaded image
-function LegrandLogo({ height, size }: { height?: number; size?: number }) {
-  const logoHeight = height ?? size ?? 26;
+function LegrandLogo({ height = 32 }: { height?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/legrand-logo.png"
       alt="Legrand Logo"
-      height={logoHeight}
-      style={{ display: 'block', height: `${logoHeight}px`, width: 'auto', background: '#ffffff', padding: '2px 8px', borderRadius: '4px' }}
+      height={height}
+      style={{ display: 'block', height: `${height}px`, width: 'auto' }}
     />
   );
 }
 
-export default function RegistrationPage() {
-  const router = useRouter();
-
-  const [form, setForm] = useState<FormData>({
-    company_name: '',
-    visitor_name: '',
-    designation: '',
-    email: '',
-    phone: '',
-  });
-
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (fieldErrors[name as keyof FieldErrors]) {
-      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setSubmitError('');
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          setFieldErrors(data.errors);
-        } else {
-          setSubmitError(data.error || 'Something went wrong. Please try again.');
-        }
-        return;
-      }
-
-      router.push(`/confirmation?code=${data.code}&name=${encodeURIComponent(data.visitor_name)}`);
-    } catch {
-      setSubmitError('Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
+export default function LandingHubPage() {
+  const cityList = VALID_CITY_SLUGS.map((slug) => CITIES[slug]);
 
   return (
     <main className="page-shell">
-      {/* ── Legrand Top Bar ── */}
-      <div className="legrand-topbar animate-fade-up" style={{ justifyContent: 'center', margin: '16px 0 8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <LegrandLogo height={50} />
-        </div>
-      </div>
-
-      {/* ── Event Identity ── */}
-      <div className="event-header animate-fade-up" style={{ animationDelay: '0.1s', width: '100%', maxWidth: '640px' }}>
-        <div className="gold-divider" />
-        <p style={{
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          letterSpacing: '0.22em',
-          textTransform: 'uppercase',
-          color: 'var(--gold-light)',
-          marginBottom: '10px',
-        }}>
-          ✨ You are cordially invited to ✨
-        </p>
-
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(1.8rem, 6vw, 2.6rem)',
-          fontWeight: 800,
-          lineHeight: 1.2,
-          marginBottom: '8px',
-        }}>
-          <span style={{ color: 'var(--legrand-red)', textShadow: '0 2px 20px rgba(226,0,15,0.4)' }}>
-            Exclusive Legrand Experience Evening
-          </span>
-        </h1>
-
-        <p style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: '1.1rem',
-          color: 'var(--text-primary)',
-          fontWeight: 600,
-          letterSpacing: '0.04em',
-          marginBottom: '16px',
-        }}>
-          Unveiling Next-Generation Power Solutions
-        </p>
-
-        <div className="gold-divider-thick" />
-
-        {/* ── Highlighted Large Event Details Grid ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '12px',
-          marginTop: '20px',
-          textAlign: 'center',
-        }}>
-          {/* Date Box */}
-          <div style={{
-            background: 'rgba(200,151,58,0.12)',
-            border: '1.5px solid var(--gold-border)',
-            borderRadius: '12px',
-            padding: '16px 14px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-          }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--gold-light)', margin: '0 0 4px' }}>
-              📅 Event Date
-            </p>
-            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
-              Thursday, 24 Sep 2026
-            </p>
-          </div>
-
-          {/* Time Box */}
-          <div style={{
-            background: 'rgba(200,151,58,0.12)',
-            border: '1.5px solid var(--gold-border)',
-            borderRadius: '12px',
-            padding: '16px 14px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-          }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--gold-light)', margin: '0 0 4px' }}>
-              🕡 Time
-            </p>
-            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
-              6:30 PM Onwards
-            </p>
-          </div>
-
-          {/* Venue Box */}
-          <div style={{
-            gridColumn: '1 / -1',
-            background: 'rgba(226,0,15,0.12)',
-            border: '1.5px solid rgba(226,0,15,0.4)',
-            borderRadius: '12px',
-            padding: '18px 20px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-          }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--legrand-red)', margin: '0 0 6px' }}>
-              📍 Venue Location
-            </p>
-            <p style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', margin: '0 0 10px', lineHeight: 1.3 }}>
-              Megma Restaurant &amp; Banquets, Odhav, Ahmedabad
-            </p>
-            <a
-              href="https://maps.app.goo.gl/Jy4kNUzK9vDzrpjk6"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'var(--legrand-red)',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                padding: '8px 18px',
-                borderRadius: '100px',
-                textDecoration: 'none',
-                boxShadow: '0 3px 14px rgba(226,0,15,0.4)',
-              }}
-            >
-              🗺️ Open in Google Maps ↗
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Registration Concluded Card (Cream Card) ── */}
-      <div
-        className="card-cream animate-fade-up"
-        style={{ marginTop: '8px', animationDelay: '0.2s', textAlign: 'center', padding: '36px 24px' }}
-      >
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'rgba(226,0,15,0.08)',
-          border: '1px solid rgba(226,0,15,0.25)',
-          borderRadius: '100px',
-          padding: '6px 16px',
-          marginBottom: '16px',
-        }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--legrand-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            🎉 Event Concluded
-          </span>
-        </div>
-
-        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--cream-text)', marginBottom: '12px', fontSize: '1.5rem', fontWeight: 700 }}>
-          Thank You for Your Support!
-        </h2>
-
-        <p style={{ color: 'var(--cream-text)', fontSize: '0.95rem', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto 16px' }}>
-          Registration for the <strong>Exclusive Legrand Experience Evening</strong> is now officially closed.
-        </p>
-
-        <p style={{ color: 'var(--cream-muted)', fontSize: '0.875rem', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto' }}>
-          We extend our sincere appreciation and heartfelt thanks to all our esteemed guests, partners, and attendees for making this evening a grand success!
-        </p>
-
-        {/* Footer info */}
-        <div className="divider" style={{ marginTop: '24px', borderColor: 'var(--cream-border)' }} />
-        <p style={{ textAlign: 'center', fontSize: '0.775rem', color: 'var(--cream-muted)', lineHeight: 1.6, margin: 0 }}>
-          For inquiries or support: <strong>Mayur Patel · Harshal Buch · Hemant Kelaskar</strong>
-        </p>
-      </div>
-
-      {/* Bottom Legrand wordmark */}
-      <div
-        className="animate-fade-up"
-        style={{
-          marginTop: '28px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '4px',
-          animationDelay: '0.35s',
-          paddingBottom: '8px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+      {/* ── Executive Topbar ── */}
+      <header className="executive-topbar animate-fade-up">
+        <div className="topbar-brand">
           <LegrandLogo height={32} />
         </div>
-        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '6px' }}>
-          Life is On
+        <div>
+          <span className="topbar-tagline">
+            BETTER SPACES FOR A BRIGHTER TOMORROW
+          </span>
+        </div>
+      </header>
+
+      {/* ── Switchgear 360° Hero Header ── */}
+      <section className="animate-fade-up" style={{ textAlign: 'center', maxWidth: '820px', margin: '14px auto 20px' }}>
+        <div className="invitation-kicker">
+          YOU ARE CORDIALLY INVITED TO
+        </div>
+
+        <h1 className="executive-title">
+          <span className="red">SWITCHGEAR</span>{' '}
+          <span className="light">360°</span>
+        </h1>
+
+        <div className="executive-subtitle">
+          SAFETY · EFFICIENCY · PERFORMANCE
+        </div>
+
+        <p className="executive-desc">
+          Join Legrand for an exclusive symposium exploring our complete range of low-voltage switchgear, protection and intelligent control solutions for a safer, smarter and more sustainable tomorrow.
         </p>
-      </div>
+
+        {/* ── 4 Executive Pillars ── */}
+        <div className="pillars-strip">
+          <div className="pillar-box">
+            <span className="pillar-sub">PILLAR I</span>
+            <span className="pillar-title">ENHANCED SAFETY</span>
+          </div>
+          <div className="pillar-box">
+            <span className="pillar-sub">PILLAR II</span>
+            <span className="pillar-title">GREATER EFFICIENCY</span>
+          </div>
+          <div className="pillar-box">
+            <span className="pillar-sub">PILLAR III</span>
+            <span className="pillar-title">RELIABLE PERFORMANCE</span>
+          </div>
+          <div className="pillar-box">
+            <span className="pillar-sub">PILLAR IV</span>
+            <span className="pillar-title">SUSTAINABLE TOMORROW</span>
+          </div>
+        </div>
+
+        {/* Highlights Bar */}
+        <div className="highlights-bar">
+          <span>KNOWLEDGE SHARING</span>
+          <span style={{ color: 'var(--gold)' }}>•</span>
+          <span>EXECUTIVE NETWORKING</span>
+          <span style={{ color: 'var(--gold)' }}>•</span>
+          <span>LIVE PRODUCT SHOWCASE</span>
+          <span style={{ color: 'var(--gold)' }}>•</span>
+          <span>TECHNICAL ADVISORY</span>
+        </div>
+
+        <div style={{
+          fontSize: '0.8rem',
+          fontWeight: 800,
+          textTransform: 'uppercase',
+          letterSpacing: '0.14em',
+          color: 'var(--gold-light)',
+          margin: '28px 0 12px',
+        }}>
+          SELECT YOUR EVENT LOCATION
+        </div>
+      </section>
+
+      {/* ── 3 Cities Interactive Cards Grid ── */}
+      <section className="city-hub-grid animate-fade-up">
+        {cityList.map((city) => (
+          <div key={city.slug} className="city-hub-card">
+            {/* Flyer Thumbnail Banner */}
+            <div className="city-hub-banner">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={city.flyerImage}
+                alt={`Legrand ${city.name} Invitation`}
+              />
+              <div className="city-hub-badge-city">
+                {city.name} Edition
+              </div>
+              <div className="city-hub-badge-time">
+                {city.time}
+              </div>
+            </div>
+
+            {/* City Card Body */}
+            <div className="city-hub-body">
+              <div>
+                <h2 className="city-hub-title">
+                  {city.name}
+                </h2>
+
+                {/* Date Box */}
+                <div className="city-hub-datebox">
+                  <div className="city-hub-datelabel">
+                    EVENT DATE
+                  </div>
+                  <div className="city-hub-dateval">
+                    {city.date}
+                  </div>
+                </div>
+
+                {/* Venue Details */}
+                <div className="city-hub-venuebox">
+                  <div className="city-hub-venuelabel">
+                    EXCLUSIVE VENUE
+                  </div>
+                  <div className="city-hub-venuename">
+                    {city.venueName}
+                  </div>
+                  <div className="city-hub-venueaddr">
+                    {city.venueAddress}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                <Link
+                  href={`/${city.slug}`}
+                  className="btn-legrand"
+                  style={{ width: '100%', textAlign: 'center' }}
+                >
+                  Register for {city.name} →
+                </Link>
+
+                <a
+                  href={city.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-gold btn-sm"
+                  style={{ textAlign: 'center' }}
+                >
+                  Open Location in Google Maps ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* ── Executive Footer Ribbon ── */}
+      <footer className="executive-footer" style={{ maxWidth: '1100px' }}>
+        <div className="footer-skyline-text">
+          GUJARAT &nbsp;|&nbsp; IDEAS &nbsp;|&nbsp; CONNECTIONS &nbsp;|&nbsp; A BRIGHTER TOMORROW
+        </div>
+      </footer>
     </main>
   );
 }

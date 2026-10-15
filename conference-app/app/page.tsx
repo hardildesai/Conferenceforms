@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Join Legrand for Switchgear 360°: Safety, Efficiency, Performance across Gujarat. Register for Ahmedabad, Surat, and Rajkot.',
 };
 
-function LegrandLogo({ height = 32 }: { height?: number }) {
+function LegrandLogo({ height = 30 }: { height?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -27,74 +27,45 @@ export default function LandingHubPage() {
       {/* ── Executive Topbar ── */}
       <header className="executive-topbar animate-fade-up">
         <div className="topbar-brand">
-          <LegrandLogo height={32} />
+          <LegrandLogo height={30} />
         </div>
-        <div>
-          <span className="topbar-tagline">
-            BETTER SPACES FOR A BRIGHTER TOMORROW
-          </span>
+        <div className="topbar-tagline">
+          BETTER SPACES FOR A BRIGHTER TOMORROW
         </div>
       </header>
 
-      {/* ── Switchgear 360° Hero Header ── */}
-      <section className="animate-fade-up" style={{ textAlign: 'center', maxWidth: '820px', margin: '14px auto 20px' }}>
-        <div className="invitation-kicker">
+      {/* ── Switchgear 360° Hero Header (Clean & Uncluttered) ── */}
+      <section className="animate-fade-up" style={{ textAlign: 'center', maxWidth: '780px', margin: '8px auto 20px', width: '100%' }}>
+        <div className="invitation-kicker" style={{ fontSize: '0.7rem', letterSpacing: '0.18em', marginBottom: '3px' }}>
           YOU ARE CORDIALLY INVITED TO
         </div>
 
-        <h1 className="executive-title">
+        <h1 className="executive-title" style={{ fontSize: 'clamp(1.9rem, 6.5vw, 3.2rem)', marginBottom: '4px', lineHeight: 1.15 }}>
           <span className="red">SWITCHGEAR</span>{' '}
           <span className="light">360°</span>
         </h1>
 
-        <div className="executive-subtitle">
-          SAFETY · EFFICIENCY · PERFORMANCE
+        <div className="executive-subtitle" style={{ fontSize: 'clamp(0.85rem, 3vw, 1.05rem)', letterSpacing: '0.12em', marginBottom: '10px' }}>
+          GUJARAT SYMPOSIUM · SAFETY · EFFICIENCY · PERFORMANCE
         </div>
 
-        <p className="executive-desc">
-          Join Legrand for an exclusive symposium exploring our complete range of low-voltage switchgear, protection and intelligent control solutions for a safer, smarter and more sustainable tomorrow.
+        <p className="executive-desc" style={{ fontSize: '0.88rem', maxWidth: '580px', margin: '0 auto 16px', lineHeight: 1.5 }}>
+          Join Legrand for an executive symposium showcasing next-generation low-voltage switchgear, protection and intelligent power architectures across Gujarat.
         </p>
 
-        {/* ── 4 Executive Pillars ── */}
-        <div className="pillars-strip">
-          <div className="pillar-box">
-            <span className="pillar-sub">PILLAR I</span>
-            <span className="pillar-title">ENHANCED SAFETY</span>
-          </div>
-          <div className="pillar-box">
-            <span className="pillar-sub">PILLAR II</span>
-            <span className="pillar-title">GREATER EFFICIENCY</span>
-          </div>
-          <div className="pillar-box">
-            <span className="pillar-sub">PILLAR III</span>
-            <span className="pillar-title">RELIABLE PERFORMANCE</span>
-          </div>
-          <div className="pillar-box">
-            <span className="pillar-sub">PILLAR IV</span>
-            <span className="pillar-title">SUSTAINABLE TOMORROW</span>
-          </div>
-        </div>
-
-        {/* Highlights Bar */}
-        <div className="highlights-bar">
-          <span>KNOWLEDGE SHARING</span>
-          <span style={{ color: 'var(--gold)' }}>•</span>
-          <span>EXECUTIVE NETWORKING</span>
-          <span style={{ color: 'var(--gold)' }}>•</span>
-          <span>LIVE PRODUCT SHOWCASE</span>
-          <span style={{ color: 'var(--gold)' }}>•</span>
-          <span>TECHNICAL ADVISORY</span>
-        </div>
-
         <div style={{
-          fontSize: '0.8rem',
+          display: 'inline-block',
+          fontSize: '0.72rem',
           fontWeight: 800,
           textTransform: 'uppercase',
-          letterSpacing: '0.14em',
+          letterSpacing: '0.16em',
           color: 'var(--gold-light)',
-          margin: '28px 0 12px',
+          background: 'rgba(200, 151, 58, 0.08)',
+          border: '1px solid var(--gold-border)',
+          borderRadius: '100px',
+          padding: '5px 16px',
         }}>
-          SELECT YOUR EVENT LOCATION
+          SELECT YOUR EVENT CITY
         </div>
       </section>
 
@@ -149,11 +120,11 @@ export default function LandingHubPage() {
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                 <Link
                   href={`/${city.slug}`}
                   className="btn-legrand"
-                  style={{ width: '100%', textAlign: 'center' }}
+                  style={{ width: '100%', textAlign: 'center', fontSize: '0.88rem', padding: '12px 18px' }}
                 >
                   Register for {city.name} →
                 </Link>
@@ -163,7 +134,7 @@ export default function LandingHubPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-gold btn-sm"
-                  style={{ textAlign: 'center' }}
+                  style={{ textAlign: 'center', fontSize: '0.78rem', padding: '7px 12px' }}
                 >
                   Open Location in Google Maps ↗
                 </a>
@@ -174,7 +145,7 @@ export default function LandingHubPage() {
       </section>
 
       {/* ── Executive Footer Ribbon ── */}
-      <footer className="executive-footer" style={{ maxWidth: '1100px' }}>
+      <footer className="executive-footer" style={{ maxWidth: '1100px', marginTop: '28px' }}>
         <div className="footer-skyline-text">
           GUJARAT &nbsp;|&nbsp; IDEAS &nbsp;|&nbsp; CONNECTIONS &nbsp;|&nbsp; A BRIGHTER TOMORROW
         </div>

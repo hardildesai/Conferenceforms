@@ -337,7 +337,11 @@ export default function CityRegistrationForm({ cityConfig }: { cityConfig: CityE
             {cityConfig.contacts.map((c, i) => (
               <span key={c.name}>
                 {i > 0 && ' · '}
-                <strong style={{ color: '#ffffff' }}>{c.name}</strong> ({c.title})
+                <strong style={{ color: '#ffffff' }}>{c.name}</strong> ({c.title}
+                {c.email ? (
+                  <> · <a href={`mailto:${c.email}`} style={{ color: 'var(--gold-light)', textDecoration: 'none' }}>{c.email}</a></>
+                ) : null}
+                )
               </span>
             ))}
           </div>

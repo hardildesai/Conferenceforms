@@ -99,7 +99,7 @@ function ConfirmationContent() {
       </section>
 
       {/* ── Entry Pass Card (Cream Luxury) ── */}
-      <div className="card-cream animate-fade-up" style={{ maxWidth: '580px', padding: '36px 28px' }}>
+      <div className="card-cream animate-fade-up" style={{ maxWidth: '580px', width: '100%' }}>
         <div style={{
           textAlign: 'center',
           fontSize: '0.72rem',

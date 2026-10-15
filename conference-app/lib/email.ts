@@ -211,6 +211,11 @@ function buildEmailHtml({
               <p style="margin:0;color:#888888;font-size:12px;">
                 Legrand India · Switchgear 360° Event Registration System
               </p>
+              ${cityConf?.contacts ? `
+                <p style="margin:6px 0 0;color:#666666;font-size:12px;">
+                  Event Coordinators: ${cityConf.contacts.map(c => `${c.name} (${c.title}${c.email ? ` · ${c.email}` : ''})`).join(' &nbsp;|&nbsp; ')}
+                </p>
+              ` : ''}
             </td>
           </tr>
 

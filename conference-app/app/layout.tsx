@@ -1,11 +1,18 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#0f0d0a',
+};
+
 export const metadata: Metadata = {
-  title: 'Exclusive Legrand Experience Evening — Register Now',
+  title: 'Legrand Switchgear 360° — Gujarat Symposium',
   description:
-    'Register for the Exclusive Legrand Experience Evening: Unveiling Next-Generation Power Solutions. Thursday, 24 September 2026, Megma Restaurant, Ahmedabad.',
+    'Join Legrand for Switchgear 360° across Ahmedabad, Surat and Rajkot. Low-voltage switchgear, protection and power management architectures.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -17,7 +17,7 @@ export interface CityEventConfig {
   venueName: string;
   venueAddress: string;
   mapsUrl: string;
-  contacts: { name: string; title: string }[];
+  contacts: { name: string; title: string; email?: string }[];
   accentColor: string;
 }
 
@@ -36,7 +36,7 @@ export const CITIES: Record<CitySlug, CityEventConfig> = {
     venueAddress: 'Near Everest Park, Kalawad Road, Rajkot – 360005, Gujarat, India.',
     mapsUrl: 'https://maps.google.com/?q=RPJ+Hotel+Kalawad+Road+Rajkot',
     contacts: [
-      { name: 'Khush Kadivar', title: 'Territory Manager' },
+      { name: 'Khush Kadivar', title: 'Territory Manager', email: 'khush.kadivar@legrand.com' },
       { name: 'Harshal Buch', title: 'Sr. Branch Manager' },
     ],
     accentColor: '#e2000f',
@@ -74,7 +74,7 @@ export const CITIES: Record<CitySlug, CityEventConfig> = {
     venueAddress: 'Dumas Road, Near Iscon Mall, Piplod, Surat – 395007, Gujarat, India.',
     mapsUrl: 'https://maps.google.com/?q=The+AMore+Hotel+Dumas+Road+Piplod+Surat',
     contacts: [
-      { name: 'Bhavik Shah', title: 'Sr. Area Manager' },
+      { name: 'Bhavik Shah', title: 'Sr. Area Manager', email: 'bhavik.shah@legrand.com' },
       { name: 'Harshal Buch', title: 'Sr. Branch Manager' },
     ],
     accentColor: '#e2000f',
